@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="UAV Swarm - Theory and Mathematics of Decentralized Consensus Control">
+  <title>Theory &amp; Math - UAV Swarm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+<div class="sidebar">
+  <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-heading">Project</div>
+      <a href="index.html" class="nav-item">Overview</a>
+      <a href="theory.html" class="nav-item active">Theory &amp; Math</a>
+      <a href="simulation.html" class="nav-item">3D Simulation</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-heading">Reference</div>
+      <a href="methodology.html" class="nav-item">Methodology</a>
+      <a href="implementation.html" class="nav-item">Implementation</a>
+    </div>
+  </nav>
+</div>
+
+<div class="main-content">
+
+  <h1>Theory &amp; Mathematical Formulation</h1>
+
+  <h2>1. Quadcopter State-Space Dynamics</h2>
+
+  <p>Each agent is modeled as a double-integrator with aerodynamic drag, linearized around a steady hover trim condition. The state vector tracks 3D position and velocity:</p>
+
+  <div class="eq-box">
+    $$ \mathbf{x}_i = \begin{bmatrix} x_i & y_i & z_i & \dot{x}_i & \dot{y}_i & \dot{z}_i \end{bmatrix}^T \in \mathbb{R}^6 $$
+  </div>
+
+  <p>The continuous-time state-space dynamics are:</p>
+
+  <div class="eq-box">
+    $$ \dot{\mathbf{x}}_i = \mathbf{A}\mathbf{x}_i + \mathbf{B}\mathbf{u}_i + \mathbf{d}_i(t) $$
+    <div class="label">Eq. 1: Linear Time-Invariant Dynamics</div>
+  </div>
+
+  <div class="eq-box">
+    $$ \mathbf{A} = \begin{bmatrix}
+    \mathbf{0}_{3 \times 3} & \mathbf{I}_{3 \times 3} \\
+    \mathbf{0}_{3 \times 3} & -\frac{b}{m} \mathbf{I}_{3 \times 3}
+    \end{bmatrix}, \quad
+    \mathbf{B} = \begin{bmatrix}
+    \mathbf{0}_{3 \times 3} \\
+    \frac{1}{m} \mathbf{I}_{3 \times 3}
+    \end{bmatrix} $$
+    <div class="label">Eq. 2: System and Input Matrices</div>
+  </div>
+
+  <p>Where \(m = 1.2\) kg is the vehicle mass, \(b = 0.15\) Ns/m is the aerodynamic drag coefficient, \(\mathbf{u}_i \in \mathbb{R}^3\) is the commanded thrust vector, and \(\mathbf{d}_i(t)\) represents wind gust perturbations.</p>
+
+  <hr class="divider">
+
+  <h2>2. Linear Quadratic Regulator (LQR)</h2>
+
+  <p>Rather than tuning individual PID loops, the LQR framework provides optimal state feedback gains by minimizing a quadratic cost function:</p>
+
+  <div class="eq-box">
+    $$ J = \int_0^{\infty} \left( \mathbf{x}_e^T \mathbf{Q} \mathbf{x}_e + \mathbf{u}^T \mathbf{R} \mathbf{u} \right) dt $$
+    <div class="label">Eq. 3: LQR Cost Function</div>
+  </div>
+
+  <p>where \(\mathbf{x}_e = \mathbf{x}_i - \mathbf{x}_{\text{target}}\) is the state error. The weighting matrices prioritize position accuracy over control effort:</p>
+
+  <div class="eq-box">
+    $$ \mathbf{Q} = \text{diag}(10, 10, 10, 1, 1, 1), \quad \mathbf{R} = 0.1 \cdot \mathbf{I}_{3 \times 3} $$
+    <div class="label">Eq. 4: Cost Weights</div>
+  </div>
+
+  <p>The optimal gain matrix \(\mathbf{K}\) is obtained by solving the Continuous-Time Algebraic Riccati Equation (CARE):</p>
+
+  <div class="eq-box">
+    $$ \mathbf{A}^T \mathbf{P} + \mathbf{P} \mathbf{A} - \mathbf{P} \mathbf{B} \mathbf{R}^{-1} \mathbf{B}^T \mathbf{P} + \mathbf{Q} = 0 $$
+    $$ \mathbf{K} = \mathbf{R}^{-1} \mathbf{B}^T \mathbf{P} $$
+    <div class="label">Eq. 5: CARE and LQR Gain</div>
+  </div>
+
+  <p>The control law combines LQR state feedback with APF guidance forces:</p>
+
+  <div class="eq-box">
+    $$ \mathbf{u}_i = -\mathbf{K} \mathbf{x}_e + \frac{1}{m} \nabla_{\mathbf{r}} V(\mathbf{r}) $$
+    <div class="label">Eq. 6: Combined Control Law</div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>3. Artificial Potential Fields (APF)</h2>
+
+  <p>The guidance layer computes a total potential energy landscape and follows its negative gradient. The total potential is the sum of three components:</p>
+
+  <div class="eq-box">
+    $$ V(\mathbf{r}_i) = V_{\text{target}}(\mathbf{r}_i) + V_{\text{formation}}(\mathbf{r}_i) + V_{\text{obstacle}}(\mathbf{r}_i) $$
+    <div class="label">Eq. 7: Total Potential Energy</div>
+  </div>
+
+  <h3>Target Attraction</h3>
+
+  <div class="eq-box">
+    $$ V_{\text{target}} = \frac{1}{2} k_a \| \mathbf{r}_i - \mathbf{r}_{\text{target}} \|^2 $$
+    $$ \mathbf{F}_{\text{target}} = -k_a (\mathbf{r}_i - \mathbf{r}_{\text{target}}) $$
+    <div class="label">Eq. 8: Attractive Potential and Force</div>
+  </div>
+
+  <h3>Formation Consensus</h3>
+
+  <div class="eq-box">
+    $$ V_{\text{formation}} = \frac{1}{4} k_c \sum_{j \in \mathcal{N}_i} \| (\mathbf{r}_i - \mathbf{r}_j) - (\mathbf{d}_i - \mathbf{d}_j) \|^2 $$
+    $$ \mathbf{F}_{\text{consensus}} = -k_c \sum_{j \in \mathcal{N}_i} \left[ (\mathbf{r}_i - \mathbf{r}_j) - (\mathbf{d}_i - \mathbf{d}_j) \right] $$
+    <div class="label">Eq. 9: Consensus Potential and Force</div>
+  </div>
+
+  <h3>Obstacle Repulsion</h3>
+
+  <div class="eq-box">
+    $$ V_{\text{obstacle}} = \sum_{k} \begin{cases} \eta \left( \frac{1}{\rho_k} - \frac{1}{\rho_0} \right)^2 & \rho_k < \rho_0 \\ 0 & \text{otherwise} \end{cases} $$
+    $$ \mathbf{F}_{\text{obstacle}} = \sum_k -2\eta \left( \frac{1}{\rho_k} - \frac{1}{\rho_0} \right) \frac{1}{\rho_k^2} \hat{\mathbf{r}}_k $$
+    <div class="label">Eq. 10: Repulsive Potential and Force</div>
+  </div>
+
+  <p>where \(\rho_k = \|\mathbf{r}_i - \mathbf{o}_k\| - r_k\) is the signed distance to obstacle \(k\), \(\rho_0 = 3.0\) m is the activation radius, and \(\eta = 8.0\) is the repulsion gain.</p>
+
+  <hr class="divider">
+
+  <h2>4. Graph Laplacian Consensus</h2>
+
+  <p>The communication topology is defined by a spatial graph \(\mathcal{G} = (\mathcal{V}, \mathcal{E})\) where edges exist between agents within \(R_{\text{comm}} = 8\) m:</p>
+
+  <div class="eq-box">
+    $$ [\mathbf{A}_{\mathcal{G}}]_{ij} = \begin{cases} 1 & \|\mathbf{r}_i - \mathbf{r}_j\|_2 \leq R_{\text{comm}}, i \neq j \\ 0 & \text{otherwise} \end{cases} $$
+    $$ \mathbf{L} = \mathbf{D}_{\mathcal{G}} - \mathbf{A}_{\mathcal{G}} $$
+    <div class="label">Eq. 11: Adjacency Matrix and Graph Laplacian</div>
+  </div>
+
+  <div class="callout green">
+    <strong>Algebraic Connectivity.</strong> The second smallest eigenvalue of the Laplacian, \(\lambda_2(\mathbf{L})\), measures the connectivity of the swarm graph. A strictly positive \(\lambda_2 > 0\) guarantees that the network is connected and consensus can be achieved. Our simulation maintains \(\lambda_2 = 7.0\) (fully connected topology throughout).
+  </div>
+
+  <hr class="divider">
+
+  <h2>5. Lyapunov Stability Proof</h2>
+
+  <p>The closed-loop system stability is verified via a Lyapunov candidate function equal to the total potential energy plus kinetic energy:</p>
+
+  <div class="eq-box">
+    $$ \mathcal{V}(\mathbf{r}, \dot{\mathbf{r}}) = V(\mathbf{r}) + \frac{1}{2} \sum_{i=1}^N m \| \dot{\mathbf{r}}_i \|^2 $$
+    <div class="label">Eq. 12: Lyapunov Candidate</div>
+  </div>
+
+  <p>The time derivative along system trajectories is:</p>
+
+  <div class="eq-box">
+    $$ \dot{\mathcal{V}} = \sum_{i=1}^N \left( \nabla_{\mathbf{r}_i} V \cdot \dot{\mathbf{r}}_i + m \ddot{\mathbf{r}}_i \cdot \dot{\mathbf{r}}_i \right) $$
+    $$ = \sum_{i=1}^N \left( -\mathbf{F}_{\text{total}} \cdot \dot{\mathbf{r}}_i + (\mathbf{u}_i - b \dot{\mathbf{r}}_i + m\mathbf{d}_i) \cdot \dot{\mathbf{r}}_i \right) $$
+    $$ = \sum_{i=1}^N \left( -\mathbf{F}_{\text{total}} \cdot \dot{\mathbf{r}}_i + (-\mathbf{K}\mathbf{x}_e + \mathbf{F}_{\text{total}} - b\dot{\mathbf{r}}_i + m\mathbf{d}_i) \cdot \dot{\mathbf{r}}_i \right) $$
+    $$ = -\sum_{i=1}^N \left( \dot{\mathbf{r}}_i^T (\mathbf{K}_p + b\mathbf{I}) \dot{\mathbf{r}}_i \right) \leq 0 $$
+    <div class="label">Eq. 13: Lyapunov Derivative (negative definite)</div>
+  </div>
+
+  <p>Since \(\dot{\mathcal{V}}\) is negative definite (assuming bounded disturbances), the system is asymptotically stable about the target formation. Wind gusts appear as bounded disturbances \(d_i(t)\) and produce bounded tracking errors that decay exponentially once the gust subsides.</p>
+
+  <hr class="divider">
+
+  <h2>6. Dryden Wind Turbulence Model</h2>
+
+  <p>Atmospheric turbulence is modeled using a first-order Gauss-Markov process that matches the Dryden power spectral density:</p>
+
+  <div class="eq-box">
+    $$ \Phi_{uu}(\omega) = \sigma^2 \frac{2L}{\pi} \frac{1}{1 + (L\omega)^2} $$
+    $$ \dot{w}(t) = -\frac{1}{\tau} w(t) + \sigma \sqrt{\frac{2}{\tau}} \xi(t) $$
+    <div class="label">Eq. 14: Dryden Spectrum (longitudinal) and Shaping Filter</div>
+  </div>
+
+  <p>With turbulence intensity \(\sigma = 2.0\) m/s (light-to-moderate gusts) and correlation time \(\tau = 5.0\) s. The discrete-time implementation uses an exact exponential update:</p>
+
+  <div class="eq-box">
+    $$ w(t + \Delta t) = e^{-\Delta t / \tau} w(t) + \sigma \sqrt{1 - e^{-2\Delta t / \tau}} \, n, \quad n \sim \mathcal{N}(0,1) $$
+    <div class="label">Eq. 15: Discrete-Time Gauss-Markov Process</div>
+  </div>
+
+</div>
+
+<footer class="site-footer">
+  <p>UAV Swarm Coordination - Theory &amp; Mathematics</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  renderMathInElement(document.body, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "$", right: "$", display: false }
+    ],
+    throwOnError: false
+  });
+});
+</script>
+
+</body>
+</html>

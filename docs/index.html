@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Distributed UAV Swarm Coordination with decentralized consensus, APF guidance, and LQR optimal control">
+  <title>UAV Swarm Coordination</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+<div class="sidebar">
+  <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-heading">Project</div>
+      <a href="index.html" class="nav-item active">Overview</a>
+      <a href="theory.html" class="nav-item">Theory &amp; Math</a>
+      <a href="simulation.html" class="nav-item">3D Simulation</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-heading">Reference</div>
+      <a href="methodology.html" class="nav-item">Methodology</a>
+      <a href="implementation.html" class="nav-item">Implementation</a>
+    </div>
+  </nav>
+</div>
+
+<div class="main-content">
+
+  <section class="hero">
+    <h1>Distributed UAV Swarm Coordination</h1>
+    <p class="subtitle">
+      Decentralized consensus formation control with Artificial Potential Fields,
+      LQR-optimal state feedback, and Dryden wind gust rejection.
+      Seven autonomous quadcopters navigate a constrained urban canyon.
+    </p>
+    <div class="status-badge">
+      <span class="dot"></span>
+      SYSTEM ACTIVE - DECENTRALIZED CONSENSUS ENGAGED
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <div class="stats">
+    <div class="stat"><span class="num">7</span><span class="lbl">Autonomous Drones</span></div>
+    <div class="stat"><span class="num">6-DOF</span><span class="lbl">State Space per Agent</span></div>
+    <div class="stat"><span class="num">LQR</span><span class="lbl">Optimal State Feedback</span></div>
+    <div class="stat"><span class="num">APF</span><span class="lbl">Potential Field Guidance</span></div>
+    <div class="stat"><span class="num">3</span><span class="lbl">Obstacle Types</span></div>
+  </div>
+
+  <h2>Engineering Architecture</h2>
+
+  <p>
+    This project demonstrates a complete decentralized multi-agent control pipeline:
+    state-space modeling, Linear Quadratic Regulator (LQR) synthesis, Artificial
+    Potential Field (APF) guidance, graph-theoretic consensus via the Laplacian
+    spectrum, and stochastic wind gust rejection using the Dryden turbulence model.
+  </p>
+
+  <div class="card-grid">
+    <a href="theory.html" class="card mod-theory">
+      <span class="tag">GNC Mathematics</span>
+      <h3>State-Space &amp; Optimal Control</h3>
+      <p>LQR synthesis via continuous-time algebraic Riccati equation. Lyapunov stability proof. Graph Laplacian connectivity.</p>
+      <span class="arrow">View theory &rarr;</span>
+    </a>
+    <a href="simulation.html" class="card mod-sim">
+      <span class="tag">Interactive 3D</span>
+      <h3>Live Swarm Simulation</h3>
+      <p>Three.js WebGL viewer with formation tracking, metric charts, and playback controls. Wedge to diamond morph.</p>
+      <span class="arrow">Launch simulation &rarr;</span>
+    </a>
+    <a href="methodology.html" class="card mod-method">
+      <span class="tag">Methods</span>
+      <h3>APF &amp; Consensus Algorithms</h3>
+      <p>Artificial Potential Fields, decentralized graph Laplacian consensus, formation reconfiguration, wind gust rejection.</p>
+      <span class="arrow">Read methodology &rarr;</span>
+    </a>
+    <a href="implementation.html" class="card">
+      <span class="tag">Code</span>
+      <h3>Implementation</h3>
+      <p>Python simulation engine architecture: modular src/ layout, RK4 integration, JSON export pipeline.</p>
+      <span class="arrow">View code &rarr;</span>
+    </a>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Key Validation Metrics</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>Formation Convergence</h3>
+      <p>Aggregate formation error E(t) decays asymptotically under consensus. Bounded spikes during wind gusts recover smoothly.</p>
+    </div>
+    <div class="card">
+      <h3>Actuator Saturation</h3>
+      <p>Control effort u(t) respects per-axis thrust limits. LQR gains tuned for operation within T_max = 15N.</p>
+    </div>
+    <div class="card">
+      <h3>Graph Connectivity</h3>
+      <p>Algebraic connectivity lambda_2(L) monitored in real-time. Communication topology remains connected throughout.</p>
+    </div>
+    <div class="card">
+      <h3>Wind Gust Rejection</h3>
+      <p>Dryden PSD-shaped turbulence (sigma=2 m/s). Consensus drives neighbors to compensate for displaced agents.</p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>GNC Portfolio Value</h2>
+
+  <p>This project demonstrates engineering competencies directly relevant to Guidance, Navigation, and Control roles:</p>
+
+  <ul>
+    <li><strong>Multi-agent control theory</strong> - decentralized consensus via graph Laplacian, algebraic connectivity analysis</li>
+    <li><strong>Optimal control synthesis</strong> - LQR via continuous-time algebraic Riccati equation (CARE)</li>
+    <li><strong>Obstacle avoidance</strong> - analytic potential field gradients with guaranteed collision-free navigation</li>
+    <li><strong>Flight dynamics</strong> - 6-DOF state-space modeling with aerodynamic damping and thrust saturation</li>
+    <li><strong>Stochastic disturbances</strong> - Dryden wind turbulence model with PSD-shaped colored noise</li>
+    <li><strong>Formation reconfiguration</strong> - smooth morphing between geometric topologies under consensus</li>
+    <li><strong>Web-based visualization</strong> - Three.js 3D rendering with real-time telemetry charts</li>
+  </ul>
+
+</div>
+
+<footer class="site-footer">
+  <p>UAV Swarm Coordination - Python + Three.js + Plotly - Military Terminal Theme</p>
+</footer>
+
+</body>
+</html>

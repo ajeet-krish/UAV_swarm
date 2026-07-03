@@ -1,0 +1,11 @@
+[project]
+name = "uav-swarm"
+version = "0.1.0"
+description = "Distributed UAV Swarm Coordination & Kinetic Collision Avoidance"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "numpy>=2.5.0",
+    "scipy>=1.18.0",
+    "matplotlib>=3.11.0",
+]

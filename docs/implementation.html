@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="UAV Swarm - Implementation, Code Architecture, and How to Run">
+  <title>Implementation - UAV Swarm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+<div class="sidebar">
+  <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-heading">Project</div>
+      <a href="index.html" class="nav-item">Overview</a>
+      <a href="theory.html" class="nav-item">Theory &amp; Math</a>
+      <a href="simulation.html" class="nav-item">3D Simulation</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-heading">Reference</div>
+      <a href="methodology.html" class="nav-item">Methodology</a>
+      <a href="implementation.html" class="nav-item active">Implementation</a>
+    </div>
+  </nav>
+</div>
+
+<div class="main-content">
+
+  <h1>Implementation</h1>
+
+  <h2>Project Architecture</h2>
+
+  <pre><code>UAV_swarm/
+  run_simulation.py         # Entrypoint: run sim, export JSON to web
+
+  src/
+    core/
+      models.py             # QuadcopterAgent with 6-DOF state space
+      dynamics.py           # LQR gain synthesis via CARE + RK4 step
+      consensus.py          # Graph Laplacian, APF forces, formation error
+      wind.py               # Dryden PSD-shaped wind gust generator
+      obstacles.py          # Box and cylinder signed-distance fields
+    viz/
+      export.py             # Frame-by-frame JSON serializer for Three.js
+
+  docs/                     # GitHub Pages static site
+    index.html              # Landing page
+    theory.html             # Full mathematical exposition (KaTeX)
+    simulation.html         # Three.js WebGL viewer + Plotly charts
+    methodology.html        # Algorithm deep-dive
+    implementation.html     # This page
+    css/style.css           # Military terminal theme
+    assets/
+      data/
+        swarm_simulation.json  # Pre-computed frame data
+      js/
+        viewer.js           # Three.js scene setup and animation
+        charts.js           # Plotly metric chart configuration
+        controls.js         # Play/pause/scrub/speed controls</code></pre>
+
+  <h2>Module Reference</h2>
+
+  <div class="module-table">
+    <div class="module-row">
+      <div class="mod-name">models.py</div>
+      <div class="mod-desc">QuadcopterAgent class: state vector, physical parameters (m, b, T_max), RK4 integrator with saturation</div>
+      <div class="mod-file">src/core/</div>
+    </div>
+    <div class="module-row">
+      <div class="mod-name">dynamics.py</div>
+      <div class="mod-desc">State-space matrices (A, B), LQR gain via scipy solve_continuous_are, combined control law</div>
+      <div class="mod-file">src/core/</div>
+    </div>
+    <div class="module-row">
+      <div class="mod-name">consensus.py</div>
+      <div class="mod-desc">Graph Laplacian computation, velocity-command APF guidance, formation error metrics</div>
+      <div class="mod-file">src/core/</div>
+    </div>
+    <div class="module-row">
+      <div class="mod-name">wind.py</div>
+      <div class="mod-desc">DrydenGustModel: first-order Gauss-Markov colored noise with exact exponential update</div>
+      <div class="mod-file">src/core/</div>
+    </div>
+    <div class="module-row">
+      <div class="mod-name">obstacles.py</div>
+      <div class="mod-desc">BoxObstacle, CylinderObstacle with signed-distance fields and APF repulsion forces</div>
+      <div class="mod-file">src/core/</div>
+    </div>
+    <div class="module-row">
+      <div class="mod-name">export.py</div>
+      <div class="mod-desc">FrameExporter with NumpyEncoder, vector field lattice sampling for Three.js arrows</div>
+      <div class="mod-file">src/viz/</div>
+    </div>
+    <div class="module-row">
+      <div class="mod-name">run_simulation.py</div>
+      <div class="mod-desc">Orchestrator: builds environment, creates agents, runs 900-step simulation, exports JSON</div>
+      <div class="mod-file">/</div>
+    </div>
+  </div>
+
+  <h2>How to Run</h2>
+
+  <p>The simulation is fully self-contained in Python. All dependencies are managed with <code>uv</code>:</p>
+
+  <h4>1. Install dependencies</h4>
+  <pre><code class="language-bash">uv sync</code></pre>
+
+  <h4>2. Run the simulation</h4>
+  <pre><code class="language-bash">uv run python run_simulation.py</code></pre>
+  <p>This generates <code>docs/assets/data/swarm_simulation.json</code> with 900 frames of telemetry data.</p>
+
+  <h4>3. Preview the website locally</h4>
+  <pre><code class="language-bash">uv run python -m http.server -d docs 8000</code></pre>
+  <p>Open <code>http://localhost:8000</code> in a browser to view the full site.</p>
+
+  <h2>Simulation Parameters</h2>
+
+  <table>
+    <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+    <tr><td>dt</td><td>0.02 s</td><td>Integration timestep (50 Hz)</td></tr>
+    <tr><td>T_total</td><td>18.0 s</td><td>Total simulation duration</td></tr>
+    <tr><td>N_steps</td><td>900</td><td>Total integration steps</td></tr>
+    <tr><td>m</td><td>1.2 kg</td><td>Vehicle mass</td></tr>
+    <tr><td>b</td><td>0.15 Ns/m</td><td>Aerodynamic damping</td></tr>
+    <tr><td>T_max</td><td>15.0 N</td><td>Per-axis thrust limit</td></tr>
+    <tr><td>v_cruise</td><td>3.0 m/s</td><td>Nominal cruise speed</td></tr>
+    <tr><td>R_comm</td><td>8.0 m</td><td>Communication radius</td></tr>
+    <tr><td>sigma_wind</td><td>2.0 m/s</td><td>Wind turbulence intensity</td></tr>
+    <tr><td>morph_time</td><td>8.0 s</td><td>Formation morph trigger</td></tr>
+  </table>
+
+  <h2>Key Source: LQR Gain Synthesis</h2>
+
+  <pre><code class="language-python">def compute_lqr_gain(m=1.2, b=0.15):
+    A = np.array([
+        [0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, -b/m, 0, 0],
+        [0, 0, 0, 0, -b/m, 0],
+        [0, 0, 0, 0, 0, -b/m],
+    ])
+    B = np.array([
+        [0, 0, 0], [0, 0, 0], [0, 0, 0],
+        [1/m, 0, 0], [0, 1/m, 0], [0, 0, 1/m],
+    ])
+    Q = np.diag([10, 10, 10, 1, 1, 1])
+    R = 0.1 * np.eye(3)
+    P = solve_continuous_are(A, B, Q, R)
+    K = np.linalg.solve(R, B.T @ P)
+    return K</code></pre>
+
+  <h2>Key Source: Consensus Guidance</h2>
+
+  <pre><code class="language-python">def compute_guidance(agent, agents, target, env, params):
+    v_cruise = params["v_cruise"]
+    k_follow = params["k_follow"]
+    k_avoid = params["k_avoid"]
+
+    if agent.is_leader:
+        to_target = target - agent.pos
+        dist = np.linalg.norm(to_target)
+        desired_vel = (to_target / dist) * v_cruise if dist > 1 else np.zeros(3)
+    else:
+        target_pos = agents[0].pos + agent.d_ij
+        pos_error = target_pos - agent.pos
+        desired_vel = agents[0].vel + k_follow * pos_error
+
+    F_target = k_follow * (desired_vel - agent.vel)
+    F_consensus = compute_consensus_forces(agent, agents, params)
+    F_obstacle = env.compute_obstacle_forces(agent.pos, k_avoid, params["rho0"])
+    F_damping = -params["k_damp"] * agent.vel
+
+    return F_target + F_consensus + F_obstacle + F_damping</code></pre>
+
+  <h2>Key Source: Dryden Wind Model</h2>
+
+  <pre><code class="language-python">class DrydenGustModel:
+    def __init__(self, sigma=2.0, tau=5.0, seed=42):
+        self.sigma = sigma
+        self.tau = tau
+        self.rng = np.random.default_rng(seed)
+        self.w = np.zeros(3)
+
+    def sample(self, dt):
+        phi = np.exp(-dt / self.tau)
+        noise_scale = self.sigma * np.sqrt(1 - phi * phi)
+        self.w[0] = phi * self.w[0] + noise_scale * self.rng.normal()
+        self.w[1] = phi * self.w[1] + noise_scale * self.rng.normal() * 0.5
+        self.w[2] = phi * self.w[2] + noise_scale * self.rng.normal()
+        return self.w.copy()</code></pre>
+
+</div>
+
+<footer class="site-footer">
+  <p>UAV Swarm Coordination - Implementation</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+</body>
+</html>

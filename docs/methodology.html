@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="UAV Swarm - Methodology for APF, Consensus, and Obstacle Avoidance">
+  <title>Methodology - UAV Swarm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+<div class="sidebar">
+  <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-heading">Project</div>
+      <a href="index.html" class="nav-item">Overview</a>
+      <a href="theory.html" class="nav-item">Theory &amp; Math</a>
+      <a href="simulation.html" class="nav-item">3D Simulation</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-heading">Reference</div>
+      <a href="methodology.html" class="nav-item active">Methodology</a>
+      <a href="implementation.html" class="nav-item">Implementation</a>
+    </div>
+  </nav>
+</div>
+
+<div class="main-content">
+
+  <h1>Methodology</h1>
+
+  <h2>1. Decentralized Consensus Algorithm</h2>
+
+  <p>Each drone operates autonomously with no centralized coordinator. Communication is purely local: each agent shares its position and velocity with neighbors within \(R_{\text{comm}} = 8\) m. The consensus law drives the relative offsets between agents toward the desired formation geometry:</p>
+
+  <div class="eq-box">
+    $$ \mathbf{u}_i^{\text{consensus}} = -k_c \sum_{j \in \mathcal{N}_i} \left[ (\mathbf{r}_i - \mathbf{r}_j) - (\mathbf{d}_i - \mathbf{d}_j) \right] $$
+  </div>
+
+  <p>The desired offsets \(\mathbf{d}_i\) define the formation shape. By smoothly interpolating \(\mathbf{d}_i(t)\) between two sets of offsets mid-flight, the swarm reconfigures from wedge to diamond geometry while maintaining local connectivity.</p>
+
+  <h2>2. Velocity-Command Guidance Architecture</h2>
+
+  <p>Instead of commanding absolute positions, the guidance layer generates a desired velocity vector for each agent. This provides smoother transient response and natural saturation behavior:</p>
+
+  <h4>Leader Guidance</h4>
+  <p>The leader computes a unit vector toward the target waypoint and scales by cruise speed:</p>
+  <div class="eq-box">
+    $$ \mathbf{v}_{\text{des}} = \frac{\mathbf{r}_{\text{target}} - \mathbf{r}_{\text{leader}}}{\|\mathbf{r}_{\text{target}} - \mathbf{r}_{\text{leader}}\|} \cdot v_{\text{cruise}} $$
+    $$ \mathbf{F}_{\text{guidance}} = k_{\text{follow}} (\mathbf{v}_{\text{des}} - \dot{\mathbf{r}}_{\text{leader}}) $$
+  </div>
+
+  <h4>Follower Guidance</h4>
+  <p>Each follower tracks a virtual target position relative to the leader, combined with velocity matching:</p>
+  <div class="eq-box">
+    $$ \mathbf{r}_{\text{target},i} = \mathbf{r}_{\text{leader}} + \mathbf{d}_i $$
+    $$ \mathbf{v}_{\text{des},i} = \dot{\mathbf{r}}_{\text{leader}} + k_{\text{follow}} (\mathbf{r}_{\text{target},i} - \mathbf{r}_i) $$
+  </div>
+
+  <h2>3. Obstacle Geometry and Distance Functions</h2>
+
+  <h3>Box Obstacles (Canyon Walls)</h3>
+  <p>The signed distance to a box is computed by clamping the query point to the box bounds. Interior points (negative distance) receive maximum repulsive force to prevent penetration:</p>
+  <div class="eq-box">
+    $$ \mathbf{c} = \text{clamp}(\mathbf{p}, \mathbf{b}_{\text{min}}, \mathbf{b}_{\text{max}}) $$
+    $$ \rho = \|\mathbf{p} - \mathbf{c}\|_2 \cdot \text{sign}(\text{outside}) $$
+  </div>
+
+  <h3>Cylinder Obstacles (Pillars)</h3>
+  <p>Distance to a finite-height cylinder combines horizontal radial distance with vertical elevation:</p>
+  <div class="eq-box">
+    $$ \rho_{\text{horiz}} = \sqrt{(p_x - c_x)^2 + (p_z - c_z)^2} - R $$
+    $$ \rho_{\text{vert}} = \text{distance to cylinder endcaps} $$
+    $$ \rho = \sqrt{\rho_{\text{horiz}}^2 + \rho_{\text{vert}}^2} \quad \text{(with sign)} $$
+  </div>
+
+  <h2>4. Formation Morphing Strategy</h2>
+
+  <p>At \(t = 8.0\) seconds (midway through the 18s simulation), the swarm transitions from a planar wedge to a 3D diamond formation. The offset vectors evolve as:</p>
+
+  <div class="eq-box">
+    $$ \mathbf{d}_i(t) = (1 - \alpha(t)) \cdot \mathbf{d}_i^{\text{wedge}} + \alpha(t) \cdot \mathbf{d}_i^{\text{diamond}} $$
+    $$ \alpha(t) = \text{clamp}\left(\frac{t - t_{\text{morph}}}{T_{\text{morph}}}, 0, 1\right) $$
+  </div>
+
+  <p>The morph duration \(T_{\text{morph}} = 2.0\) seconds gives a smooth, visually continuous transition. Formation error spikes during the transient and decays as consensus re-converges.</p>
+
+  <h3>Wedge Formation (initial)</h3>
+  <table>
+    <tr><th>Drone</th><th>Offset (x, y, z)</th><th>Role</th></tr>
+    <tr><td>D0</td><td>(0.0, 0.0, 0.0)</td><td>Leader</td></tr>
+    <tr><td>D1</td><td>(-1.5, 0.0, 1.5)</td><td>Left wing</td></tr>
+    <tr><td>D2</td><td>(-1.5, 0.0, -1.5)</td><td>Right wing</td></tr>
+    <tr><td>D3</td><td>(-3.0, 0.0, 3.0)</td><td>Far left</td></tr>
+    <tr><td>D4</td><td>(-3.0, 0.0, 1.0)</td><td>Inner left</td></tr>
+    <tr><td>D5</td><td>(-3.0, 0.0, -1.0)</td><td>Inner right</td></tr>
+    <tr><td>D6</td><td>(-3.0, 0.0, -3.0)</td><td>Far right</td></tr>
+  </table>
+
+  <h3>Diamond Formation (morphed)</h3>
+  <table>
+    <tr><th>Drone</th><th>Offset (x, y, z)</th><th>Role</th></tr>
+    <tr><td>D0</td><td>(0.0, 1.5, 0.0)</td><td>Apex (raised)</td></tr>
+    <tr><td>D1</td><td>(-1.5, 0.5, 1.5)</td><td>Upper left</td></tr>
+    <tr><td>D2</td><td>(-1.5, 0.5, -1.5)</td><td>Upper right</td></tr>
+    <tr><td>D3</td><td>(-3.0, -0.5, 2.0)</td><td>Lower left</td></tr>
+    <tr><td>D4</td><td>(-3.0, -0.5, 0.5)</td><td>Lower inner left</td></tr>
+    <tr><td>D5</td><td>(-3.0, -0.5, -0.5)</td><td>Lower inner right</td></tr>
+    <tr><td>D6</td><td>(-3.0, -0.5, -2.0)</td><td>Lower right</td></tr>
+  </table>
+
+  <hr class="divider">
+
+  <h2>6. Trajectory Animations</h2>
+
+  <h3>Top-Down View (X-Z Plane)</h3>
+  <p>The top-down view shows the swarm flying through the canyon corridor from above. Building walls appear as dark rectangles, pillars as purple circles. The leader is amber, followers are green. Small wireframe circles show the desired formation offset targets.</p>
+
+  <div class="img-row single">
+    <figure>
+      <img src="assets/images/top_down.gif" alt="Top-down trajectory animation" style="width:100%">
+      <figcaption>Top-down view: swarm transits the canyon corridor with mid-flight wedge-to-diamond morph at t=8.0s</figcaption>
+    </figure>
+  </div>
+
+  <h3>Side View (X-Y Plane)</h3>
+  <p>The side view shows altitude profiles. The diamond formation uses vertical separation (leader at +1.5m, lower tier at -0.5m relative to center) which is clearly visible after the morph.</p>
+
+  <div class="img-row single">
+    <figure>
+      <img src="assets/images/side_view.gif" alt="Side view trajectory animation" style="width:100%">
+      <figcaption>Side view: altitude profiles during wedge-to-diamond morph. Vertical separation emerges after t=8.0s.</figcaption>
+    </figure>
+  </div>
+
+  <hr class="divider">
+
+  <h2>7. Wind Gust Rejection Strategy</h2>
+
+  <p>The Dryden wind model injects stochastic velocity perturbations independently on each axis. When a drone is displaced by wind, the consensus force from its neighbors pulls it back into formation. This demonstrates the key advantage of decentralized control: every drone acts as a virtual spring-damper for every neighbor, providing natural disturbance rejection without explicit fault detection.</p>
+
+</div>
+
+<footer class="site-footer">
+  <p>UAV Swarm Coordination - Methodology</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  renderMathInElement(document.body, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "$", right: "$", display: false }
+    ],
+    throwOnError: false
+  });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Interactive 3D UAV Swarm Simulation with real-time telemetry">
+  <title>3D Simulation - UAV Swarm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+<div class="sidebar">
+  <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-heading">Project</div>
+      <a href="index.html" class="nav-item">Overview</a>
+      <a href="theory.html" class="nav-item">Theory &amp; Math</a>
+      <a href="simulation.html" class="nav-item active">3D Simulation</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-heading">Reference</div>
+      <a href="methodology.html" class="nav-item">Methodology</a>
+      <a href="implementation.html" class="nav-item">Implementation</a>
+    </div>
+  </nav>
+</div>
+
+<div class="main-content">
+
+  <h1>Swarm Simulation &amp; Telemetry</h1>
+  <p>Matplotlib 3D animation of decentralized formation flight. Seven drones navigate an urban canyon with wind gusts and a mid-flight wedge-to-diamond morph.</p>
+
+  <div class="sim-layout">
+    <div>
+      <div class="sim-viewport">
+        <video id="swarmVideo" width="100%" height="100%" controls loop playsinline
+               poster="assets/images/top_down.gif"
+               style="display:block;object-fit:contain;background:#0a0e14">
+          <source src="assets/videos/swarm_3d.mp4" type="video/mp4">
+        </video>
+      </div>
+    </div>
+
+    <div class="sim-panel">
+      <div class="chart-container" style="height:135px;">
+        <div class="chart-title"># FORMATION ERROR</div>
+        <div id="formationErrorChart" style="width:100%;height:calc(100% - 18px)"></div>
+      </div>
+      <div class="chart-container" style="height:135px;">
+        <div class="chart-title"># CONTROL EFFORT (T_MAX = 15N)</div>
+        <div id="controlEffortChart" style="width:100%;height:calc(100% - 18px)"></div>
+      </div>
+      <div class="chart-container" style="height:135px;">
+        <div class="chart-title"># ALGEBRAIC CONNECTIVITY lambda_2</div>
+        <div id="lambdaChart" style="width:100%;height:calc(100% - 18px)"></div>
+      </div>
+      <div class="chart-container" style="height:135px;">
+        <div class="chart-title"># WIND GUST MAGNITUDE</div>
+        <div id="windChart" style="width:100%;height:calc(100% - 18px)"></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>What to Watch For</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Formation Convergence</h3>
+      <p>Seven drones start in a planar wedge. The formation error decays as the LQR controller converges. At t=8s, the offsets smoothly morph to a 3D diamond -- watch the error spike and recover.</p>
+    </div>
+    <div class="card">
+      <h3>Obstacle Negotiation</h3>
+      <p>The canyon corridor is defined by two building blocks (gray wireframes) with three pillar obstacles (purple wireframes) inside. APF repulsion forces push drones away from walls and pillars.</p>
+    </div>
+    <div class="card">
+      <h3>Wind Gust Rejection</h3>
+      <p>Dryden-model turbulence (sigma=2 m/s, tau=5s) perturbs each drone independently. The consensus force from neighboring agents pulls displaced drones back into formation.</p>
+    </div>
+    <div class="card">
+      <h3>Ghost Targets</h3>
+      <p>Small wireframe spheres show the desired formation offset positions relative to the leader. The gap between a drone and its ghost visualizes the instantaneous formation error.</p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Metric Plots</h2>
+  <p>The four charts below show the full simulation history. The formation morph at t=8.0s is visible as a spike in the formation error and control effort plots.</p>
+
+  <div class="chart-grid">
+    <div class="chart-container" style="height:250px;">
+      <div class="chart-title"># FORMATION ERROR vs TIME</div>
+      <div id="formationErrorChart2" style="width:100%;height:calc(100% - 18px)"></div>
+    </div>
+    <div class="chart-container" style="height:250px;">
+      <div class="chart-title"># CONTROL EFFORT vs TIME</div>
+      <div id="controlEffortChart2" style="width:100%;height:calc(100% - 18px)"></div>
+    </div>
+    <div class="chart-container" style="height:250px;">
+      <div class="chart-title"># ALGEBRAIC CONNECTIVITY lambda_2</div>
+      <div id="lambdaChart2" style="width:100%;height:calc(100% - 18px)"></div>
+    </div>
+    <div class="chart-container" style="height:250px;">
+      <div class="chart-title"># WIND GUST MAGNITUDE</div>
+      <div id="windChart2" style="width:100%;height:calc(100% - 18px)"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="site-footer">
+  <p>UAV Swarm Coordination - Interactive Simulation</p>
+</footer>
+
+<script>
+const CHART_COLORS = {
+  formation: '#3fb950',
+  control: '#d29922',
+  lambda: '#1f6feb',
+  wind: '#8b949e',
+  morph: '#d29922',
+  saturation: '#f85149',
+};
+
+function makeLayout(title, ylabel, color) {
+  return {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    font: { family: 'JetBrains Mono, monospace', size: 10, color: '#8b949e' },
+    xaxis: { title: { text: 'Time (s)' }, gridcolor: '#21262d', zerolinecolor: '#30363d' },
+    yaxis: { title: { text: ylabel }, gridcolor: '#21262d', zerolinecolor: '#30363d' },
+    margin: { l: 45, r: 10, t: 5, b: 30 },
+    showlegend: false,
+    hovermode: 'x unified',
+  };
+}
+
+fetch('assets/data/swarm_simulation.json')
+  .then(r => r.json())
+  .then(data => {
+    const frames = data.frames;
+    const meta = data.meta;
+    const times = frames.map(f => f.t);
+    const morphTime = meta.morph_time;
+    const errors = frames.map(f => f.metrics.formation_error);
+    const efforts = frames.map(f => f.metrics.max_control_effort);
+    const lambdas = frames.map(f => f.metrics.lambda_2);
+    const winds = frames.map(f => Math.sqrt(f.wind[0]**2 + f.wind[1]**2 + f.wind[2]**2));
+    const maxError = Math.max(...errors) * 1.1 || 1;
+
+    const morphTrace = { x: [morphTime, morphTime], y: [0, maxError],
+      type: 'scatter', mode: 'lines',
+      line: { color: CHART_COLORS.morph, width: 1, dash: 'dot' }, name: 'Morph' };
+
+    // Formation error
+    const errData = [
+      { x: times, y: errors, type: 'scatter', mode: 'lines',
+        line: { color: CHART_COLORS.formation, width: 1.5 }, name: 'E_formation' },
+      morphTrace,
+    ];
+    const errLayout = makeLayout('Formation Error (m)', 'Error (m)', CHART_COLORS.formation);
+
+    // Control effort
+    const ctrlData = [
+      { x: times, y: efforts, type: 'scatter', mode: 'lines',
+        line: { color: CHART_COLORS.control, width: 1.5 }, name: 'u_max' },
+      { x: [0, times[times.length - 1]], y: [15, 15], type: 'scatter', mode: 'lines',
+        line: { color: CHART_COLORS.saturation, width: 1, dash: 'dash' }, name: 'T_max = 15N' },
+    ];
+    const ctrlLayout = makeLayout('Control Effort (N)', 'Control (N)', CHART_COLORS.control);
+    ctrlLayout.yaxis.range = [0, 22];
+
+    // Lambda_2
+    const lambdaData = [
+      { x: times, y: lambdas, type: 'scatter', mode: 'lines',
+        line: { color: CHART_COLORS.lambda, width: 1.5 }, name: 'lambda_2' },
+    ];
+    const lambdaLayout = makeLayout('lambda_2', 'lambda_2', CHART_COLORS.lambda);
+
+    // Wind
+    const windData = [
+      { x: times, y: winds, type: 'scatter', mode: 'lines',
+        line: { color: CHART_COLORS.wind, width: 1 }, name: '|wind|' },
+    ];
+    const windLayout = makeLayout('Wind (m/s)', 'Wind (m/s)', CHART_COLORS.wind);
+
+    // Render all 8 charts (4 in sidebar, 4 below)
+    Plotly.newPlot('formationErrorChart', errData, errLayout, { responsive: true, displayModeBar: false });
+    Plotly.newPlot('controlEffortChart', ctrlData, ctrlLayout, { responsive: true, displayModeBar: false });
+    Plotly.newPlot('lambdaChart', lambdaData, lambdaLayout, { responsive: true, displayModeBar: false });
+    Plotly.newPlot('windChart', windData, windLayout, { responsive: true, displayModeBar: false });
+
+    Plotly.newPlot('formationErrorChart2', errData, errLayout, { responsive: true, displayModeBar: false });
+    Plotly.newPlot('controlEffortChart2', ctrlData, ctrlLayout, { responsive: true, displayModeBar: false });
+    Plotly.newPlot('lambdaChart2', lambdaData, lambdaLayout, { responsive: true, displayModeBar: false });
+    Plotly.newPlot('windChart2', windData, windLayout, { responsive: true, displayModeBar: false });
+  })
+  .catch(err => {
+    document.querySelector('.sim-viewport').innerHTML +=
+      '<div style="position:absolute;bottom:10px;left:10px;color:var(--red);font-size:0.8em;">Could not load chart data. Run the simulation first.</div>';
+  });
+
+// Sidebar toggle
+document.querySelector('.sidebar-toggle')?.addEventListener('click', function() {
+  document.querySelector('.sidebar').classList.toggle('open');
+});
+</script>
+
+</body>
+</html>

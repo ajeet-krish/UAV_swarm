@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+
+# macOS
+.DS_Store
+
+# Simulation output
+docs/assets/data/*.json
+
+# IDE
+.idea/
+.mypy_cache/
+.ruff_cache/
