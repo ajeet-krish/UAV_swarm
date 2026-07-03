@@ -1,5 +1,5 @@
 """
-Generate a 3D MP4 animation of the UAV swarm from saved JSON data.
+Generate a 3D MP4 animation of the UAV swarm navigating the orbital sphere field.
 """
 
 import json
@@ -16,13 +16,12 @@ DATA_PATH = "docs/assets/data/swarm_simulation.json"
 OUT_PATH = "docs/assets/videos/swarm_3d.mp4"
 
 DRONE_COLORS = {
-    0: "#d29922",
+    0: "#d29922",  # leader
     1: "#3fb950", 2: "#3fb950",
     3: "#3fb950", 4: "#3fb950",
     5: "#3fb950", 6: "#3fb950",
 }
 
-MORPH_TIME = 8.0
 TRAIL_LEN = 30
 
 
@@ -31,56 +30,25 @@ def load_data(path):
         return json.load(f)
 
 
-def draw_box_edges(ax, min_c, max_c, color="#30363d", alpha=0.4):
-    x1, y1, z1 = min_c
-    x2, y2, z2 = max_c
-    corners = [
-        [x1, x1, x2, x2, x1],
-        [y1, y2, y2, y1, y1],
-        [z1, z1, z1, z1, z1],
-    ]
-    edges = [
-        ([x1, x2], [y1, y1], [z1, z1]),
-        ([x1, x2], [y2, y2], [z1, z1]),
-        ([x1, x1], [y1, y2], [z1, z1]),
-        ([x2, x2], [y1, y2], [z1, z1]),
-        ([x1, x2], [y1, y1], [z2, z2]),
-        ([x1, x2], [y2, y2], [z2, z2]),
-        ([x1, x1], [y1, y2], [z2, z2]),
-        ([x2, x2], [y1, y2], [z2, z2]),
-        ([x1, x1], [y1, y1], [z1, z2]),
-        ([x1, x1], [y2, y2], [z1, z2]),
-        ([x2, x2], [y1, y1], [z1, z2]),
-        ([x2, x2], [y2, y2], [z1, z2]),
-    ]
-    for xs, ys, zs in edges:
-        ax.plot(xs, ys, zs, color=color, alpha=alpha, linewidth=0.5)
-
-
-def draw_cylinder_wire(ax, center, radius, height, color="#6b21a8", alpha=0.3):
+def draw_sphere_wire(ax, center, radius, color="#6d28d9", alpha=0.35):
     cx, cy, cz = center
-    theta = np.linspace(0, 2 * np.pi, 16)
-    bx = cx + radius * np.cos(theta)
-    bz = cz + radius * np.sin(theta)
-    # Bottom ring
-    ax.plot(bx, [cy - height / 2] * len(bx), bz, color=color, alpha=alpha, linewidth=0.5)
-    # Top ring
-    ax.plot(bx, [cy + height / 2] * len(bx), bz, color=color, alpha=alpha, linewidth=0.5)
-    # Vertical lines
-    for i in range(0, 16, 4):
-        ax.plot([bx[i], bx[i]], [cy - height / 2, cy + height / 2],
-                [bz[i], bz[i]], color=color, alpha=alpha, linewidth=0.5)
+    theta = np.linspace(0, 2 * np.pi, 24)
+
+    # XY circle
+    ax.plot(cx + radius * np.cos(theta), cy + radius * np.sin(theta), [cz] * len(theta),
+            color=color, alpha=alpha, linewidth=0.8)
+    # XZ circle
+    ax.plot(cx + radius * np.cos(theta), [cy] * len(theta), cz + radius * np.sin(theta),
+            color=color, alpha=alpha, linewidth=0.8)
+    # YZ circle
+    ax.plot([cx] * len(theta), cy + radius * np.cos(theta), cz + radius * np.sin(theta),
+            color=color, alpha=alpha, linewidth=0.8)
 
 
 def build_static_scene(ax, meta):
     for obs in meta["obstacles"]:
-        if obs["type"] == "box":
-            draw_box_edges(ax, obs["min_corner"], obs["max_corner"])
-        elif obs["type"] == "cylinder":
-            draw_cylinder_wire(ax, obs["center"], obs["radius"], obs["height"])
-    # Target waypoint marker
-    t = meta["target"]
-    ax.scatter([t[0]], [t[1]], [t[2]], marker="*", s=80, color="#d29922", alpha=0.6, zorder=1)
+        if obs["type"] == "sphere":
+            draw_sphere_wire(ax, obs["center"], obs["radius"])
 
 
 def main():
@@ -97,9 +65,10 @@ def main():
     fig = plt.figure(figsize=(16, 9), facecolor="#0d1117")
     ax = fig.add_subplot(111, projection="3d", facecolor="#0a0e14")
 
-    ax.set_xlim(-8, 22)
-    ax.set_ylim(-1, 7)
-    ax.set_zlim(-6, 6)
+    # Fixed coordinate bounds for deep space zone
+    ax.set_xlim(-10, 10)
+    ax.set_ylim(0, 12)
+    ax.set_zlim(-10, 10)
 
     ax.set_xlabel("X (m)", color="#3fb950", fontsize=10)
     ax.set_ylabel("Y (m)", color="#3fb950", fontsize=10)
@@ -122,11 +91,11 @@ def main():
     ax.yaxis.pane.set_edgecolor("#21262d")
     ax.zaxis.pane.set_edgecolor("#21262d")
 
-    # Static scene elements (obstacles)
+    # Static scene elements (asteroids)
     build_static_scene(ax, meta)
 
-    # Camera angle
-    ax.view_init(elev=25, azim=-45)
+    # Static camera angle for fixed coordinate reference
+    ax.view_init(elev=20, azim=-55)
 
     # Trail containers (per drone)
     trail_artists = []
@@ -135,17 +104,17 @@ def main():
     trail_z = [[] for _ in range(num_drones)]
 
     # Pre-allocate drone scatter
-    drone_scat = ax.scatter([], [], [], s=40, zorder=5)
-    ghost_scat = ax.scatter([], [], [], s=15, zorder=2, marker="o",
-                            edgecolors="#484f58", facecolors="none", linewidths=0.5, alpha=0.4)
+    drone_scat = ax.scatter([], [], [], s=45, zorder=5)
+    ghost_scat = ax.scatter([], [], [], s=12, zorder=2, marker="o",
+                            edgecolors="#484f58", facecolors="none", linewidths=0.5, alpha=0.3)
 
     # HUD text
     hud_time = ax.text2D(0.02, 0.95, "", transform=ax.transAxes,
                          color="#39d353", fontsize=11, fontfamily="monospace",
                          verticalalignment="top", fontweight="bold")
-    hud_state = ax.text2D(0.02, 0.88, "", transform=ax.transAxes,
-                          color="#3fb950", fontsize=9, fontfamily="monospace",
-                          verticalalignment="top")
+    hud_wp = ax.text2D(0.02, 0.88, "", transform=ax.transAxes,
+                        color="#d29922", fontsize=9, fontfamily="monospace",
+                        verticalalignment="top")
     hud_error = ax.text2D(0.02, 0.82, "", transform=ax.transAxes,
                           color="#8b949e", fontsize=8, fontfamily="monospace",
                           verticalalignment="top")
@@ -214,25 +183,22 @@ def main():
                 seg_colors.append(to_rgba(c, alpha))
 
             if segments:
-                lc = Line3DCollection(segments, colors=seg_colors, linewidths=1.5)
+                lc = Line3DCollection(segments, colors=seg_colors, linewidths=1.2)
                 ax.add_collection(lc)
                 trail_artists.append(lc)
 
         # HUD update
-        form_state = "DIAMOND" if t >= MORPH_TIME else "WEDGE"
         err = frame["metrics"]["formation_error"]
         wind_mag = np.linalg.norm(frame["wind"])
 
+        # Find active target from meta and current position
+        target_coords = np.array(meta["target"])
         hud_time.set_text(f"> t = {t:.1f}s  /  {total_time:.0f}s")
-        hud_state.set_text(f"> FORMATION: {form_state}")
+        hud_wp.set_text(f"> SYSTEM: ROTATING WEDGE ENGAGED")
         hud_error.set_text(f"> E_fmt = {err:.3f} m")
         hud_wind.set_text(f"> wind  = {wind_mag:.2f} m/s")
 
-        # Pan camera to follow swarm center
-        center_x = (min(xs) + max(xs)) / 2
-        ax.set_xlim(center_x - 12, center_x + 12)
-
-        return (drone_scat, ghost_scat, hud_time, hud_state, hud_error, hud_wind) + tuple(trail_artists)
+        return (drone_scat, ghost_scat, hud_time, hud_wp, hud_error, hud_wind) + tuple(trail_artists)
 
     # Pre-render first frame to set up
     animate(0)

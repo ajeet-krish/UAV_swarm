@@ -74,6 +74,29 @@ class CylinderObstacle:
         return np.zeros(3)
 
 
+class SphereObstacle:
+    def __init__(self, center, radius, label=""):
+        self.center = np.array(center, dtype=np.float64)
+        self.radius = radius
+        self.label = label
+
+    def distance(self, point):
+        p = np.asarray(point, dtype=np.float64)
+        diff = p - self.center
+        dist = np.linalg.norm(diff) - self.radius
+        grad = diff / (np.linalg.norm(diff) + 1e-12)
+        return dist, grad
+
+    def compute_forces(self, point, eta, rho0):
+        dist, grad = self.distance(point)
+        if dist <= 0:
+            return eta * 100.0 * grad
+        if 0 < dist < rho0:
+            magnitude = eta * (1.0 / dist - 1.0 / rho0) / (dist ** 2)
+            return magnitude * grad
+        return np.zeros(3)
+
+
 class Environment:
     def __init__(self):
         self.obstacles = []
@@ -103,6 +126,13 @@ class Environment:
                     "center": obs.center.tolist(),
                     "radius": obs.radius,
                     "height": obs.height,
+                    "label": obs.label,
+                })
+            elif isinstance(obs, SphereObstacle):
+                data.append({
+                    "type": "sphere",
+                    "center": obs.center.tolist(),
+                    "radius": obs.radius,
                     "label": obs.label,
                 })
         return data

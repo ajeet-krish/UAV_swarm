@@ -42,15 +42,16 @@ def compute_guidance(agent, agents, target, env, params):
     # Velocity tracking force
     F_target = k_follow * (desired_vel - agent.vel)
 
-    # Consensus force (formation keeping with neighbors)
+    # Consensus force (formation keeping with neighbors, only for followers)
     F_consensus = np.zeros(3, dtype=np.float64)
-    for other in agents:
-        if other.id == agent.id:
-            continue
-        dist = np.linalg.norm(agent.pos - other.pos)
-        if dist < follow_dist:
-            offset_error = (agent.pos - other.pos) - (agent.d_ij - other.d_ij)
-            F_consensus -= k_consensus * offset_error
+    if not agent.is_leader:
+        for other in agents:
+            if other.id == agent.id:
+                continue
+            dist = np.linalg.norm(agent.pos - other.pos)
+            if dist < follow_dist:
+                offset_error = (agent.pos - other.pos) - (agent.d_ij - other.d_ij)
+                F_consensus -= k_consensus * offset_error
 
     # Obstacle repulsion
     F_obstacle = env.compute_obstacle_forces(agent.pos, k_avoid, rho0)

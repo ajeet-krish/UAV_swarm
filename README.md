@@ -1,43 +1,45 @@
-# Distributed UAV Swarm Coordination & Kinetic Collision Avoidance
+# Distributed UAV Swarm Coordination in 3D Orbital Debris Field
 
-Decentralized multi-agent swarm simulation with APF guidance, LQR optimal control, and graph Laplacian consensus. Seven autonomous quadcopters navigate a constrained urban canyon with wind gust disturbances.
+Decentralized multi-agent swarm simulation with 3D Direction Cosine Matrix (DCM) heading-aligned consensus, LQR optimal control, and 3D Artificial Potential Field (APF) guidance. Seven autonomous quadcopters navigate a fixed 3D cube space populated with 6 spherical floating asteroids/debris obstacles.
 
 ## Quick Start
 
 ```bash
 uv sync
 uv run python run_simulation.py
+uv run python src/viz/animate_3d.py
+uv run python src/viz/animate_2d.py
 uv run python -m http.server -d docs 8765
 # Open http://localhost:8765
 ```
 
 ## Architecture
 
-- **Python engine**: 6-DOF state-space dynamics, LQR via CARE, APF velocity-command guidance, Dryden wind turbulence
-- **Web viewer**: Three.js WebGL 3D scene with orbit controls, drone trails, obstacle rendering, vector field arrows
-- **Telemetry**: Plotly.js charts for formation error, control effort, connectivity, and wind magnitude
+- **Python engine**: 6-DOF state-space dynamics, LQR via CARE, 3D DCM heading-aligned guidance, 3D APF sphere avoidance, Dryden wind turbulence
+- **Web viewer**: Matplotlib-generated 3D MP4 video and 2D animated GIFs with synchronized Plotly.js telemetry charts
+- **Telemetry**: Plotly.js charts for formation error, control effort, algebraic connectivity, and wind magnitude
 
 ## Pages
 
-- **Overview** -- Project summary, validation metrics, GNC portfolio value
-- **Theory & Math** -- KaTeX equations for state-space, LQR, APF, Laplacian, Lyapunov, Dryden
-- **3D Simulation** -- Interactive Three.js viewer with synchronized metric charts
-- **Methodology** -- Algorithm deep-dive: consensus, APF, morphing, obstacle distance functions
-- **Implementation** -- Code architecture, how to run, expandable source blocks
+- **Overview** - Project summary, validation metrics, GNC portfolio value
+- **Theory & Math** - KaTeX equations for state-space, LQR, 3D DCM, APF, Laplacian, Lyapunov, Dryden
+- **3D Simulation** - Animated 3D video with synchronized metric charts
+- **Methodology** - Algorithm deep dive: 3D DCM math, consensus, 3D APF spherical distance functions
+- **Implementation** - Code architecture, how to run, expandable source blocks
 
 ## Key Results
 
-- 7-drone decentralized formation with wedge-to-diamond reconfiguration
-- Formation error converges to bounded neighborhood under wind gusts (sigma=2 m/s)
-- Algebraic connectivity lambda_2 > 0 throughout (fully connected topology)
-- Control effort respects T_max = 15N per-axis thrust limits
-- Smooth formation morph over 2.0s at mid-trajectory
+- 7-drone decentralized wedge formation with 3D DCM velocity-vector alignment
+- Drones climb, dive, and loop back and forth through a fixed 3D cube space
+- Clean avoidance of 6 floating spherical obstacles in any flight direction
+- Formation error converges asymptotically and recovers after obstacle clearance and wind gusts (sigma=2 m/s)
+- Control effort respects physical saturation limits (T_max = 15N per axis)
 
 ## GNC Competencies Demonstrated
 
 - Multi-agent consensus via graph Laplacian
+- 3D Direction Cosine Matrix (DCM) coordination
 - LQR optimal control synthesis (CARE)
-- Artificial Potential Field guidance
+- 3D Artificial Potential Field (APF) guidance
 - Dryden wind turbulence modeling
 - 6-DOF state-space flight dynamics
-- Formation reconfiguration under decentralized control
