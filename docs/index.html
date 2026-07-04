@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<button class="sidebar-toggle" id="sidebarToggle">&#9776;</button>
 
 <div class="sidebar">
   <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
@@ -38,7 +38,7 @@
     <p class="subtitle">
       Decentralized consensus formation control with Artificial Potential Fields,
       LQR-optimal state feedback, and Dryden wind gust rejection.
-      Seven autonomous quadcopters navigate a constrained urban canyon.
+      Seven autonomous quadcopters navigate an orbital debris field.
     </p>
     <div class="status-badge">
       <span class="dot"></span>
@@ -53,7 +53,7 @@
     <div class="stat"><span class="num">6-DOF</span><span class="lbl">State Space per Agent</span></div>
     <div class="stat"><span class="num">LQR</span><span class="lbl">Optimal State Feedback</span></div>
     <div class="stat"><span class="num">APF</span><span class="lbl">Potential Field Guidance</span></div>
-    <div class="stat"><span class="num">3</span><span class="lbl">Obstacle Types</span></div>
+    <div class="stat"><span class="num">6</span><span class="lbl">Orbital Obstacles</span></div>
   </div>
 
   <h2>Engineering Architecture</h2>
@@ -73,9 +73,9 @@
       <span class="arrow">View theory &rarr;</span>
     </a>
     <a href="simulation.html" class="card mod-sim">
-      <span class="tag">Interactive 3D</span>
+      <span class="tag">3D Animation</span>
       <h3>Live Swarm Simulation</h3>
-      <p>Three.js WebGL viewer with formation tracking, metric charts, and playback controls. Wedge to diamond morph.</p>
+      <p>Matplotlib 3D animation with formation tracking, metric charts, and playback controls. 3D DCM heading-aligned wedge.</p>
       <span class="arrow">Launch simulation &rarr;</span>
     </a>
     <a href="methodology.html" class="card mod-method">
@@ -87,7 +87,7 @@
     <a href="implementation.html" class="card">
       <span class="tag">Code</span>
       <h3>Implementation</h3>
-      <p>Python simulation engine architecture: modular src/ layout, RK4 integration, JSON export pipeline.</p>
+      <p>Python simulation engine architecture: modular src/ layout, RK4 integration, MP4/GIF animation pipeline.</p>
       <span class="arrow">View code &rarr;</span>
     </a>
   </div>
@@ -127,15 +127,21 @@
     <li><strong>Obstacle avoidance</strong> - analytic potential field gradients with guaranteed collision-free navigation</li>
     <li><strong>Flight dynamics</strong> - 6-DOF state-space modeling with aerodynamic damping and thrust saturation</li>
     <li><strong>Stochastic disturbances</strong> - Dryden wind turbulence model with PSD-shaped colored noise</li>
-    <li><strong>Formation reconfiguration</strong> - smooth morphing between geometric topologies under consensus</li>
-    <li><strong>Web-based visualization</strong> - Three.js 3D rendering with real-time telemetry charts</li>
+    <li><strong>3D DCM formation rotation</strong> - heading-aligned wedge rotation via Direction Cosine Matrix</li>
+    <li><strong>Web-based visualization</strong> - Matplotlib 3D animation with telemetry charts</li>
   </ul>
 
 </div>
 
 <footer class="site-footer">
-  <p>UAV Swarm Coordination - Python + Three.js + Plotly - Military Terminal Theme</p>
+  <p>UAV Swarm Coordination - Python + Matplotlib + Plotly - Military Terminal Theme</p>
 </footer>
+
+<script>
+document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+  document.querySelector('.sidebar').classList.toggle('open');
+});
+</script>
 
 </body>
 </html>

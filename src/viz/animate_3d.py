@@ -30,19 +30,19 @@ def load_data(path):
         return json.load(f)
 
 
-def draw_sphere_wire(ax, center, radius, color="#6d28d9", alpha=0.35):
+def draw_sphere_wire(ax, center, radius, color="#ffffff", alpha=0.5):
     cx, cy, cz = center
-    theta = np.linspace(0, 2 * np.pi, 24)
+    theta = np.linspace(0, 2 * np.pi, 32)
 
     # XY circle
     ax.plot(cx + radius * np.cos(theta), cy + radius * np.sin(theta), [cz] * len(theta),
-            color=color, alpha=alpha, linewidth=0.8)
+            color=color, alpha=alpha, linewidth=1.2)
     # XZ circle
     ax.plot(cx + radius * np.cos(theta), [cy] * len(theta), cz + radius * np.sin(theta),
-            color=color, alpha=alpha, linewidth=0.8)
+            color=color, alpha=alpha, linewidth=1.2)
     # YZ circle
     ax.plot([cx] * len(theta), cy + radius * np.cos(theta), cz + radius * np.sin(theta),
-            color=color, alpha=alpha, linewidth=0.8)
+            color=color, alpha=alpha, linewidth=1.2)
 
 
 def build_static_scene(ax, meta):
@@ -122,11 +122,17 @@ def main():
                          color="#8b949e", fontsize=8, fontfamily="monospace",
                          verticalalignment="top")
 
+    total_frames = len(frames)
+
     # Update function
     def animate(frame_idx):
         frame = frames[frame_idx]
         t = frame["t"]
         drones = frame["drones"]
+
+        # Orbit camera 360 degrees over the full simulation
+        azim = -55 + 360 * (frame_idx / max(total_frames - 1, 1))
+        ax.view_init(elev=20, azim=azim)
 
         # Drone positions
         xs = [d["pos"][0] for d in drones]
@@ -205,8 +211,8 @@ def main():
 
     # Write video
     print(f"Writing {OUT_PATH}...")
-    writer = FFMpegWriter(fps=50, bitrate=8000, codec="libx264")
-    with writer.saving(fig, OUT_PATH, dpi=120):
+    writer = FFMpegWriter(fps=50, bitrate=4000, codec="libx264")
+    with writer.saving(fig, OUT_PATH, dpi=100):
         for i in range(len(frames)):
             animate(i)
             writer.grab_frame()

@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<button class="sidebar-toggle" id="sidebarToggle">&#9776;</button>
 
 <div class="sidebar">
   <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
@@ -35,7 +35,7 @@
 <div class="main-content">
 
   <h1>Swarm Simulation &amp; Telemetry</h1>
-  <p>Matplotlib 3D animation of decentralized formation flight. Seven drones navigate an urban canyon with wind gusts and a mid-flight wedge-to-diamond morph.</p>
+  <p>Matplotlib 3D animation of decentralized formation flight. Seven drones navigate an orbital debris field with wind gusts in a 3D DCM heading-aligned wedge.</p>
 
   <div class="sim-layout">
     <div>
@@ -74,11 +74,11 @@
   <div class="card-grid">
     <div class="card">
       <h3>Formation Convergence</h3>
-      <p>Seven drones start in a planar wedge. The formation error decays as the LQR controller converges. At t=8s, the offsets smoothly morph to a 3D diamond -- watch the error spike and recover.</p>
+      <p>Seven drones fly in a 3D DCM heading-aligned wedge. The formation error decays from an initial transient as the LQR controller converges. The wedge rotates in 3D to follow the leader's direction of travel.</p>
     </div>
     <div class="card">
       <h3>Obstacle Negotiation</h3>
-      <p>The canyon corridor is defined by two building blocks (gray wireframes) with three pillar obstacles (purple wireframes) inside. APF repulsion forces push drones away from walls and pillars.</p>
+      <p>The debris field contains six spherical asteroids (purple wireframes). APF repulsion forces with analytical signed-distance gradients push drones away from each sphere.</p>
     </div>
     <div class="card">
       <h3>Wind Gust Rejection</h3>
@@ -93,7 +93,7 @@
   <hr class="divider">
 
   <h2>Metric Plots</h2>
-  <p>The four charts below show the full simulation history. The formation morph at t=8.0s is visible as a spike in the formation error and control effort plots.</p>
+  <p>The four charts below show the full simulation history. The formation error rises momentarily during tight obstacle dodging and decays as consensus recovers.</p>
 
   <div class="chart-grid">
     <div class="chart-container" style="height:250px;">
@@ -114,6 +114,13 @@
     </div>
   </div>
 
+  <hr class="divider">
+
+  <h2>Interactive 3D Viewer</h2>
+  <p>Drag to rotate, scroll to zoom. Use the play button or slider to step through the simulation. White semi-transparent spheres are the asteroid obstacles; the amber dot is the leader, green dots are followers. Fading trails show recent positions.</p>
+
+  <div id="interactive3d" style="width:100%;height:600px;background:#0a0e14;border:1px solid var(--border);border-radius:6px;"></div>
+
 </div>
 
 <footer class="site-footer">
@@ -126,7 +133,6 @@ const CHART_COLORS = {
   control: '#d29922',
   lambda: '#1f6feb',
   wind: '#8b949e',
-  morph: '#d29922',
   saturation: '#f85149',
 };
 
@@ -149,22 +155,15 @@ fetch('assets/data/swarm_simulation.json')
     const frames = data.frames;
     const meta = data.meta;
     const times = frames.map(f => f.t);
-    const morphTime = meta.morph_time;
     const errors = frames.map(f => f.metrics.formation_error);
     const efforts = frames.map(f => f.metrics.max_control_effort);
     const lambdas = frames.map(f => f.metrics.lambda_2);
     const winds = frames.map(f => Math.sqrt(f.wind[0]**2 + f.wind[1]**2 + f.wind[2]**2));
-    const maxError = Math.max(...errors) * 1.1 || 1;
-
-    const morphTrace = { x: [morphTime, morphTime], y: [0, maxError],
-      type: 'scatter', mode: 'lines',
-      line: { color: CHART_COLORS.morph, width: 1, dash: 'dot' }, name: 'Morph' };
 
     // Formation error
     const errData = [
       { x: times, y: errors, type: 'scatter', mode: 'lines',
         line: { color: CHART_COLORS.formation, width: 1.5 }, name: 'E_formation' },
-      morphTrace,
     ];
     const errLayout = makeLayout('Formation Error (m)', 'Error (m)', CHART_COLORS.formation);
 
@@ -202,14 +201,257 @@ fetch('assets/data/swarm_simulation.json')
     Plotly.newPlot('controlEffortChart2', ctrlData, ctrlLayout, { responsive: true, displayModeBar: false });
     Plotly.newPlot('lambdaChart2', lambdaData, lambdaLayout, { responsive: true, displayModeBar: false });
     Plotly.newPlot('windChart2', windData, windLayout, { responsive: true, displayModeBar: false });
+
+    // ---- Interactive 3D Viewer ----
+
+    const DRONE_COLORS_3D = ['#d29922', '#3fb950', '#3fb950', '#3fb950', '#3fb950', '#3fb950', '#3fb950'];
+    const TRAIL_LEN = 30;
+    const SKIP = 3;
+    const selFrames = frames.filter((_, i) => i % SKIP === 0);
+    const numDrones = meta.num_agents;
+    const obstacles = meta.obstacles;
+
+    // Helper: generate sphere mesh vertices
+    function makeSphereMesh(center, radius, nLat=16, nLon=20) {
+      const [cx, cy, cz] = center;
+      const vertices = [];
+      for (let i = 0; i <= nLat; i++) {
+        const theta = (i / nLat) * Math.PI;
+        for (let j = 0; j <= nLon; j++) {
+          const phi = (j / nLon) * 2 * Math.PI;
+          vertices.push([
+            cx + radius * Math.sin(theta) * Math.cos(phi),
+            cy + radius * Math.cos(theta),
+            cz + radius * Math.sin(theta) * Math.sin(phi),
+          ]);
+        }
+      }
+      const ii = [], jj = [], kk = [];
+      for (let i = 0; i < nLat; i++) {
+        for (let j = 0; j < nLon; j++) {
+          const a = i * (nLon + 1) + j;
+          const b = a + nLon + 1;
+          ii.push(a, a + 1);
+          jj.push(b, b);
+          kk.push(a + 1, b + 1);
+        }
+      }
+      return { x: vertices.map(v => v[0]), y: vertices.map(v => v[1]), z: vertices.map(v => v[2]), i: ii, j: jj, k: kk };
+    }
+
+    // Precompute trails per frame per drone
+    function computeTrails(frames, numDrones, trailLen) {
+      const trails = [];
+      const accum = Array.from({ length: numDrones }, () => []);
+      for (let fi = 0; fi < frames.length; fi++) {
+        const drones = frames[fi].drones;
+        const frameTrails = [];
+        for (let di = 0; di < numDrones; di++) {
+          const pos = drones[di].pos;
+          accum[di].push(pos);
+          if (accum[di].length > trailLen) accum[di].shift();
+          frameTrails.push(accum[di].map(p => ({ x: p[0], y: p[1], z: p[2] })));
+        }
+        trails.push(frameTrails);
+      }
+      return trails;
+    }
+
+    const trails = computeTrails(selFrames, numDrones, TRAIL_LEN);
+
+    // Build base traces
+    const baseTraces = [];
+
+    // Obstacle meshes (traces 0-5)
+    for (const obs of obstacles) {
+      const mesh = makeSphereMesh(obs.center, obs.radius);
+      baseTraces.push({
+        type: 'mesh3d',
+        x: mesh.x, y: mesh.y, z: mesh.z,
+        i: mesh.i, j: mesh.j, k: mesh.k,
+        color: '#c8d8ff',
+        opacity: 0.25,
+        flatshading: true,
+        lighting: { ambient: 0.6, diffuse: 0.4, specular: 0.05 },
+        showscale: false,
+        hoverinfo: 'skip',
+      });
+    }
+
+    // Drone position traces (traces 6-12)
+    for (let di = 0; di < numDrones; di++) {
+      const d = selFrames[0].drones[di];
+      baseTraces.push({
+        type: 'scatter3d',
+        mode: 'markers',
+        x: [d.pos[0]], y: [d.pos[1]], z: [d.pos[2]],
+        marker: { size: di === 0 ? 8 : 4, color: DRONE_COLORS_3D[di], line: { width: di === 0 ? 1 : 0.5, color: '#ffffff' } },
+        name: di === 0 ? 'Leader (D0)' : `Follower D${di}`,
+        hoverinfo: 'text',
+        text: `Drone ${di}${di === 0 ? ' (Leader)' : ''}`,
+      });
+    }
+
+    // Drone trail traces (traces 13-19)
+    for (let di = 0; di < numDrones; di++) {
+      const trailPts = trails[0][di];
+      baseTraces.push({
+        type: 'scatter3d',
+        mode: 'markers',
+        x: trailPts.map(p => p.x), y: trailPts.map(p => p.y), z: trailPts.map(p => p.z),
+        marker: {
+          size: trailPts.map((_, j) => 1 + (j / Math.max(trailPts.length, 1)) * 3),
+          color: trailPts.map((_, j) => {
+            const c = DRONE_COLORS_3D[di];
+            const a = 0.08 + (j / Math.max(trailPts.length, 1)) * 0.5;
+            return `rgba(${parseInt(c.slice(1,3),16)},${parseInt(c.slice(3,5),16)},${parseInt(c.slice(5,7),16)},${a.toFixed(2)})`;
+          }),
+          line: { width: 0 },
+        },
+        showlegend: false,
+        hoverinfo: 'skip',
+      });
+    }
+
+    // Build pre-computed frame data for fast restyle updates
+    const framePositions = selFrames.map(f => f.drones.map(d => d.pos));
+    const frameTrails = trails; // already computed
+
+    // Layout
+    const sceneLayout = {
+      paper_bgcolor: '#0a0e14',
+      plot_bgcolor: '#0a0e14',
+      font: { family: 'JetBrains Mono, monospace', size: 10, color: '#8b949e' },
+      scene: {
+        xaxis: { title: 'X (m)', range: [-10, 10], gridcolor: '#21262d', zerolinecolor: '#30363d' },
+        yaxis: { title: 'Y (m)', range: [0, 12], gridcolor: '#21262d', zerolinecolor: '#30363d' },
+        zaxis: { title: 'Z (m)', range: [-10, 10], gridcolor: '#21262d', zerolinecolor: '#30363d' },
+        camera: { eye: { x: 1.8, y: 1.2, z: 1.5 } },
+        aspectmode: 'manual',
+        aspectratio: { x: 1, y: 0.7, z: 1 },
+      },
+      margin: { l: 10, r: 10, t: 10, b: 10 },
+      showlegend: true,
+      legend: { font: { size: 9, color: '#8b949e' }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
+    };
+
+    Plotly.newPlot('interactive3d', baseTraces, sceneLayout, { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'] });
+
+    // Playback state
+    let currentFrame = 0;
+    let isPlaying = false;
+    let playInterval = null;
+
+    const container = document.getElementById('interactive3d');
+
+    // HUD overlay
+    const hudDiv = document.createElement('div');
+    hudDiv.style.cssText = 'position:absolute;top:10px;left:12px;z-index:10;pointer-events:none;font-family:JetBrains Mono,monospace;font-size:11px;color:#39d353;text-shadow:0 0 4px rgba(57,211,53,0.3);';
+    hudDiv.innerHTML = '> SYSTEM: ROTATING WEDGE ENGAGED';
+    container.style.position = 'relative';
+    container.appendChild(hudDiv);
+
+    function updateFrame(fi) {
+      if (fi < 0 || fi >= framePositions.length) return;
+      currentFrame = fi;
+      const pos = framePositions[fi];
+      const trail = frameTrails[fi];
+
+      // Update drone positions (traces 6-12) - each trace gets its own single-point data
+      for (let di = 0; di < numDrones; di++) {
+        Plotly.restyle('interactive3d', {
+          x: [[pos[di][0]]],
+          y: [[pos[di][1]]],
+          z: [[pos[di][2]]],
+        }, 6 + di);
+      }
+
+      // Update trails (traces 13-19)
+      for (let di = 0; di < numDrones; di++) {
+        const pts = trail[di];
+        const n = Math.max(pts.length, 1);
+        const colors = pts.map((_, j) => {
+          const c = DRONE_COLORS_3D[di];
+          const a = 0.08 + (j / n) * 0.5;
+          return `rgba(${parseInt(c.slice(1,3),16)},${parseInt(c.slice(3,5),16)},${parseInt(c.slice(5,7),16)},${a.toFixed(2)})`;
+        });
+        const sizes = pts.map((_, j) => 1 + (j / n) * 3);
+        Plotly.restyle('interactive3d', {
+          x: [pts.map(p => p.x)],
+          y: [pts.map(p => p.y)],
+          z: [pts.map(p => p.z)],
+          'marker.color': [colors],
+          'marker.size': [sizes],
+        }, 13 + di);
+      }
+
+      // Update HUD
+      const t = selFrames[fi].t;
+      hudDiv.innerHTML = `> t = ${t.toFixed(1)}s / 18.0s`;
+    }
+
+    // Controls container
+    const ctrlDiv = document.createElement('div');
+    ctrlDiv.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 14px;background:#161b22;border:1px solid #21262d;border-top:none;border-radius:0 0 6px 6px;font-family:JetBrains Mono,monospace;';
+
+    const playBtn = document.createElement('button');
+    playBtn.innerHTML = '&#9654;';
+    playBtn.style.cssText = 'background:transparent;border:1px solid #30363d;color:#c9d1d9;padding:4px 14px;cursor:pointer;font-size:14px;border-radius:4px;';
+    playBtn.onmouseover = () => { playBtn.style.borderColor = '#3fb950'; playBtn.style.color = '#3fb950'; };
+    playBtn.onmouseout = () => { playBtn.style.borderColor = '#30363d'; playBtn.style.color = '#c9d1d9'; };
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = 0;
+    slider.max = framePositions.length - 1;
+    slider.value = 0;
+    slider.style.cssText = 'flex:1;accent-color:#3fb950;height:4px;cursor:pointer;';
+
+    const timeLabel = document.createElement('span');
+    timeLabel.style.cssText = 'font-size:11px;color:#8b949e;min-width:70px;text-align:center;';
+    timeLabel.textContent = '0.0s / 18.0s';
+
+    playBtn.onclick = () => {
+      if (isPlaying) {
+        isPlaying = false;
+        playBtn.innerHTML = '&#9654;';
+        clearInterval(playInterval);
+      } else {
+        isPlaying = true;
+        playBtn.innerHTML = '&#9632;';
+        playInterval = setInterval(() => {
+          let next = currentFrame + 1;
+          if (next >= framePositions.length) next = 0;
+          updateFrame(next);
+          slider.value = next;
+          const t = selFrames[next].t;
+          timeLabel.textContent = t.toFixed(1) + 's / 18.0s';
+        }, 60);
+      }
+    };
+
+    slider.oninput = () => {
+      const fi = parseInt(slider.value);
+      updateFrame(fi);
+      const t = selFrames[fi].t;
+      timeLabel.textContent = t.toFixed(1) + 's / 18.0s';
+    };
+
+    ctrlDiv.appendChild(playBtn);
+    ctrlDiv.appendChild(slider);
+    ctrlDiv.appendChild(timeLabel);
+    container.parentNode.insertBefore(ctrlDiv, container.nextSibling);
   })
   .catch(err => {
+    const msg = 'Could not load simulation data. Run the simulation first.';
     document.querySelector('.sim-viewport').innerHTML +=
-      '<div style="position:absolute;bottom:10px;left:10px;color:var(--red);font-size:0.8em;">Could not load chart data. Run the simulation first.</div>';
+      '<div style="position:absolute;bottom:10px;left:10px;color:var(--red);font-size:0.8em;">' + msg + '</div>';
+    document.getElementById('interactive3d').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red);font-size:0.8em;">' + msg + '</div>';
   });
 
 // Sidebar toggle
-document.querySelector('.sidebar-toggle')?.addEventListener('click', function() {
+document.getElementById('sidebarToggle')?.addEventListener('click', function() {
   document.querySelector('.sidebar').classList.toggle('open');
 });
 </script>

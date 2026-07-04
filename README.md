@@ -6,17 +6,17 @@ Decentralized multi-agent swarm simulation with 3D Direction Cosine Matrix (DCM)
 
 ```bash
 uv sync
-uv run python run_simulation.py
-uv run python src/viz/animate_3d.py
-uv run python src/viz/animate_2d.py
-uv run python -m http.server -d docs 8765
+uv run python run_simulation.py              # Generate 900-frame JSON (~5s)
+uv run python src/viz/animate_3d.py          # Render 3D MP4 with camera orbit (~3 min)
+uv run python src/viz/animate_2d.py          # Render 2D animated GIFs (~30s)
+uv run python -m http.server -d docs 8765    # Preview site
 # Open http://localhost:8765
 ```
 
 ## Architecture
 
 - **Python engine**: 6-DOF state-space dynamics, LQR via CARE, 3D DCM heading-aligned guidance, 3D APF sphere avoidance, Dryden wind turbulence
-- **Web viewer**: Matplotlib-generated 3D MP4 video and 2D animated GIFs with synchronized Plotly.js telemetry charts
+- **Web viewer**: Matplotlib 3D MP4 video (360 camera orbit), Plotly.js interactive 3D scatter viewer (drag-to-orbit + play/slider controls), 2D animated GIFs
 - **Telemetry**: Plotly.js charts for formation error, control effort, algebraic connectivity, and wind magnitude
 
 ## Pages

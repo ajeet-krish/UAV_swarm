@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.animation import PillowWriter
-from matplotlib.patches import Rectangle, Circle
+from matplotlib.patches import Circle
 import os
 
 DATA_PATH = "docs/assets/data/swarm_simulation.json"
@@ -17,7 +17,6 @@ SIDE_OUT = "docs/assets/images/side_view.gif"
 
 DRONE_COLORS = {0: "#d29922", 1: "#3fb950", 2: "#3fb950",
                 3: "#3fb950", 4: "#3fb950", 5: "#3fb950", 6: "#3fb950"}
-MORPH_TIME = 8.0
 
 
 def load_data(path):
@@ -27,8 +26,8 @@ def load_data(path):
 
 def build_top_down_plot(ax, meta):
     ax.set_facecolor("#0a0e14")
-    ax.set_xlim(-8, 22)
-    ax.set_ylim(-6, 6)
+    ax.set_xlim(-10, 10)
+    ax.set_ylim(-10, 10)
     ax.set_xlabel("X (m)", color="#3fb950", fontsize=9)
     ax.set_ylabel("Z (m)", color="#3fb950", fontsize=9)
     ax.tick_params(colors="#8b949e", labelsize=7)
@@ -36,31 +35,18 @@ def build_top_down_plot(ax, meta):
     ax.set_aspect("equal")
 
     for obs in meta["obstacles"]:
-        if obs["type"] == "box":
-            mc = np.array(obs["min_corner"])
-            Mx = np.array(obs["max_corner"])
-            w = Mx[0] - mc[0]
-            h = Mx[2] - mc[2]
-            rect = Rectangle((mc[0], mc[2]), w, h, linewidth=0.8,
-                             edgecolor="#30363d", facecolor="#161b22", alpha=0.5)
-            ax.add_patch(rect)
-        elif obs["type"] == "cylinder":
+        if obs["type"] == "sphere":
             c = obs["center"]
             r = obs["radius"]
             circle = Circle((c[0], c[2]), r, linewidth=0.8,
-                            edgecolor="#6b21a8", facecolor="#4a0e78", alpha=0.3)
+                            edgecolor="#ffffff", facecolor="#ffffff", alpha=0.15)
             ax.add_patch(circle)
-
-    # Target waypoint
-    t = meta["target"]
-    ax.plot(t[0], t[2], marker="*", markersize=10, color="#d29922", alpha=0.7,
-            markeredgecolor="none")
 
 
 def build_side_view_plot(ax, meta):
     ax.set_facecolor("#0a0e14")
-    ax.set_xlim(-8, 22)
-    ax.set_ylim(-1, 7)
+    ax.set_xlim(-10, 10)
+    ax.set_ylim(0, 12)
     ax.set_xlabel("X (m)", color="#3fb950", fontsize=9)
     ax.set_ylabel("Y (m)", color="#3fb950", fontsize=9)
     ax.tick_params(colors="#8b949e", labelsize=7)
@@ -68,26 +54,12 @@ def build_side_view_plot(ax, meta):
     ax.set_aspect("equal")
 
     for obs in meta["obstacles"]:
-        if obs["type"] == "box":
-            mc = np.array(obs["min_corner"])
-            Mx = np.array(obs["max_corner"])
-            w = Mx[0] - mc[0]
-            h = Mx[1] - mc[1]
-            rect = Rectangle((mc[0], mc[1]), w, h, linewidth=0.8,
-                             edgecolor="#30363d", facecolor="#161b22", alpha=0.5)
-            ax.add_patch(rect)
-        elif obs["type"] == "cylinder":
+        if obs["type"] == "sphere":
             c = obs["center"]
             r = obs["radius"]
-            h = obs["height"]
-            rect = Rectangle((c[0] - r, c[1] - h / 2), 2 * r, h,
-                             linewidth=0.8, edgecolor="#6b21a8",
-                             facecolor="#4a0e78", alpha=0.3)
-            ax.add_patch(rect)
-
-    t = meta["target"]
-    ax.plot(t[0], t[1], marker="*", markersize=10, color="#d29922", alpha=0.7,
-            markeredgecolor="none")
+            circle = Circle((c[0], c[1]), r, linewidth=0.8,
+                            edgecolor="#ffffff", facecolor="#ffffff", alpha=0.15)
+            ax.add_patch(circle)
 
 
 def main():
@@ -151,9 +123,8 @@ def main():
             c = DRONE_COLORS.get(j, "#3fb950")
             ax_top.plot(trail_x[j], trail_z[j], color=c, alpha=0.3, linewidth=1)
 
-        form_state = "DIAMOND" if t >= MORPH_TIME else "WEDGE"
         err = frame["metrics"]["formation_error"]
-        top_title.set_text(f"t = {t:.1f}s  |  {form_state}  |  E_fmt = {err:.3f}m")
+        top_title.set_text(f"t = {t:.1f}s  |  ROTATING WEDGE  |  E_fmt = {err:.3f}m")
 
         return top_scat, top_ghost, top_title
 
@@ -213,9 +184,8 @@ def main():
             c = DRONE_COLORS.get(j, "#3fb950")
             ax_side.plot(trail_x2[j], trail_y2[j], color=c, alpha=0.3, linewidth=1)
 
-        form_state = "DIAMOND" if t >= MORPH_TIME else "WEDGE"
         err = frame["metrics"]["formation_error"]
-        side_title.set_text(f"t = {t:.1f}s  |  {form_state}  |  E_fmt = {err:.3f}m")
+        side_title.set_text(f"t = {t:.1f}s  |  ROTATING WEDGE  |  E_fmt = {err:.3f}m")
 
         return side_scat, side_ghost, side_title
 

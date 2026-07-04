@@ -7,7 +7,7 @@
 ## Goal
 Build a decentralized multi-agent UAV swarm simulation with APF guidance, LQR optimal control, and graph Laplacian consensus in a 3D orbital debris field. Deliver a military-green-themed multi-page HTML portfolio demonstrating GNC engineering competencies to aerospace hiring managers.
 
-## Current Status (2026-07-03)
+## Current Status (2026-07-04)
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -17,7 +17,7 @@ Build a decentralized multi-agent UAV swarm simulation with APF guidance, LQR op
 | 4 | CSS theme - military green/amber terminal (sidebar nav layout) | ✅ |
 | 5 | index.html landing page (hero, stats, card grid, validation metrics) | ✅ |
 | 6 | theory.html (KaTeX: state-space, LQR, APF, Laplacian, Lyapunov, Dryden) | ✅ |
-| 7 | simulation.html (Matplotlib 3D MP4 viewer + Plotly metric charts + controls) | ✅ |
+| 7 | simulation.html (Matplotlib 3D MP4 viewer + Plotly metric charts + Plotly interactive 3D scatter viewer) | ✅ |
 | 8 | methodology.html (APF/consensus deep dive, 3D DCM formation math, 2D animations) | ✅ |
 | 9 | implementation.html (code architecture, how to run, source blocks) | ✅ |
 | 10 | AGENTS.md + README.md | ✅ |
@@ -39,7 +39,7 @@ UAV_swarm/
       dynamics.py            # LQR gain synthesis (CARE), combined control law
       consensus.py           # Graph Laplacian, APF guidance, 3D DCM rotation
       wind.py                # DrydenGustModel (Gauss-Markov colored noise)
-      obstacles.py           # SphereObstacle, BoxObstacle, Environment
+      obstacles.py           # SphereObstacle, Environment
     viz/
       __init__.py
       export.py              # FrameExporter, NumpyEncoder
@@ -57,12 +57,12 @@ UAV_swarm/
       style.css              # Military terminal theme (#0d1117, #3fb950, #d29922)
     assets/
       data/
-        swarm_simulation.json  # 3.2MB, 900 frames, 7 drones, 3D trajectory
+        swarm_simulation.json  # 3.0MB, 900 frames, 7 drones, 3D trajectory
       videos/
-        swarm_3d.mp4         # 11MB, 18s, 50fps matplotlib 3D animation
+        swarm_3d.mp4         # 8.5MB, 18s, 50fps matplotlib 3D animation (dpi=100, 4000kbps)
       images/
-        top_down.gif         # 1.7MB animated top-down trajectory
-        side_view.gif        # 1.2MB animated side-view trajectory
+        top_down.gif         # 2.6MB animated top-down trajectory
+        side_view.gif        # 2.8MB animated side-view trajectory
 ```
 
 ## Simulation Architecture
@@ -130,6 +130,24 @@ Wedge offsets are continuously rotated in 3D relative to the direction of travel
 - 900 frames at dt=0.02s = 18s total
 - Per frame: drone states (pos, vel, u, d_ij), metrics (formation_error, lambda_2, max_control_effort), wind vector
 - File size: ~3.2 MB
+
+## Key Visuals
+
+- **3D MP4**: White wireframe sphere obstacles (`#ffffff`, alpha=0.5, 32 segments) on dark background for maximum contrast. Camera orbits 360 degrees in azimuth over the 18s simulation, revealing 3D navigation and obstacle avoidance from all angles. Rendered at dpi=100, bitrate=4000 kbps (~8.5 MB).
+- **2D GIFs**: Solid white filled circles (`#ffffff`, alpha=0.15) for sphere obstacles with visible outlines.
+- **Plotly Interactive 3D**: Drag-to-orbit scatter viewer below the metric plots. Contains 6 semi-transparent white sphere mesh3d obstacles (`#c8d8ff`, opacity=0.25), 7 drone scatter3d traces (amber leader + green followers) with fading trail markers (last 30 positions), custom play/pause button and range slider. Animation via `setInterval` + `Plotly.restyle` at 60ms intervals (300 frames, every 3rd).
+
+## Recent Changes (2026-07-04)
+
+| Change | Details |
+|--------|---------|
+| animate_2d.py rewrite | Sphere obstacles (Circle patches), correct axis limits `x[-10,10], z[-10,10]` / `x[-10,10], y[0,12]`, removed MORPH_TIME, removed target waypoint star, "ROTATING WEDGE" title, removed unused Rectangle import |
+| Sphere visibility | White wireframes (`#ffffff`, alpha=0.5, linewidth=1.2, 32 pts) in 3D MP4. White filled circles (`#ffffff`, alpha=0.15) in 2D GIFs. White semi-transparent mesh3d (`#c8d8ff`, opacity=0.25) in Plotly viewer |
+| Camera orbit | `animate_3d.py` now rotates azimuth 360 degrees over full duration via `ax.view_init(elev=20, azim=-55 + 360 * frame_idx/total_frames)`. Lowered dpi=100, bitrate=4000 for web-friendly 8.5MB output |
+| Plotly interactive 3D | New section in simulation.html with 6 sphere mesh3d obstacles, 7 drone scatter3d + fading trails, custom play/pause + range slider, drag-to-orbit. Uses `setInterval` + `Plotly.restyle` (60ms) |
+| HTML cleanup | All 5 pages: removed Three.js/canyon/wall/morph/diamond references. simulation.html: removed `meta.morph_time` JS crash, removed morph trace line. implementation.html: updated file tree, module refs, params table. methodology.html: sphere obstacle math, 3D DCM section. theory.html: APF params to rho0=3.5, eta=30 |
+| Sidebar toggle | Standardized across all pages to `id="sidebarToggle"` + event listener (was inline onclick that caused double-toggle on simulation page) |
+| .gitignore | Added `docs/assets/videos/*.mp4` and `docs/assets/images/*.gif` |
 
 ## Reference Commands
 ```bash

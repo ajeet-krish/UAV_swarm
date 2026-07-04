@@ -14,6 +14,8 @@ wheels/
 
 # Simulation output
 docs/assets/data/*.json
+docs/assets/videos/*.mp4
+docs/assets/images/*.gif
 
 # IDE
 .idea/

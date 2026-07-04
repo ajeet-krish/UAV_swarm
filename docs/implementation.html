@@ -14,7 +14,7 @@
 </head>
 <body>
 
-<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<button class="sidebar-toggle" id="sidebarToggle">&#9776;</button>
 
 <div class="sidebar">
   <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
@@ -48,24 +48,27 @@
       dynamics.py           # LQR gain synthesis via CARE + RK4 step
       consensus.py          # Graph Laplacian, APF forces, formation error
       wind.py               # Dryden PSD-shaped wind gust generator
-      obstacles.py          # Box and cylinder signed-distance fields
+      obstacles.py          # Sphere obstacle signed-distance fields (3D APF)
     viz/
-      export.py             # Frame-by-frame JSON serializer for Three.js
+      export.py             # Frame-by-frame JSON serializer for web viewer
+      animate_3d.py         # Matplotlib 3D MP4 animation renderer
+      animate_2d.py         # Top-down + side-view animated GIF renderer
 
   docs/                     # GitHub Pages static site
     index.html              # Landing page
     theory.html             # Full mathematical exposition (KaTeX)
-    simulation.html         # Three.js WebGL viewer + Plotly charts
+    simulation.html         # Matplotlib 3D MP4 viewer + Plotly charts
     methodology.html        # Algorithm deep-dive
     implementation.html     # This page
     css/style.css           # Military terminal theme
     assets/
       data/
         swarm_simulation.json  # Pre-computed frame data
-      js/
-        viewer.js           # Three.js scene setup and animation
-        charts.js           # Plotly metric chart configuration
-        controls.js         # Play/pause/scrub/speed controls</code></pre>
+      videos/
+        swarm_3d.mp4        # 18s Matplotlib 3D MP4 animation
+      images/
+        top_down.gif        # Animated top-down trajectory
+        side_view.gif       # Animated side-view trajectory</code></pre>
 
   <h2>Module Reference</h2>
 
@@ -92,12 +95,12 @@
     </div>
     <div class="module-row">
       <div class="mod-name">obstacles.py</div>
-      <div class="mod-desc">BoxObstacle, CylinderObstacle with signed-distance fields and APF repulsion forces</div>
+      <div class="mod-desc">SphereObstacle with analytical signed-distance fields and APF repulsion forces</div>
       <div class="mod-file">src/core/</div>
     </div>
     <div class="module-row">
       <div class="mod-name">export.py</div>
-      <div class="mod-desc">FrameExporter with NumpyEncoder, vector field lattice sampling for Three.js arrows</div>
+      <div class="mod-desc">FrameExporter with NumpyEncoder, vector field lattice sampling for visualization</div>
       <div class="mod-file">src/viz/</div>
     </div>
     <div class="module-row">
@@ -118,9 +121,13 @@
   <pre><code class="language-bash">uv run python run_simulation.py</code></pre>
   <p>This generates <code>docs/assets/data/swarm_simulation.json</code> with 900 frames of telemetry data.</p>
 
-  <h4>3. Preview the website locally</h4>
-  <pre><code class="language-bash">uv run python -m http.server -d docs 8000</code></pre>
-  <p>Open <code>http://localhost:8000</code> in a browser to view the full site.</p>
+  <h4>3. Render animations (optional)</h4>
+  <pre><code class="language-bash">uv run python src/viz/animate_3d.py          # Regenerate 3D MP4 (~3 min)
+uv run python src/viz/animate_2d.py          # Regenerate 2D GIFs (~30s)</code></pre>
+
+  <h4>4. Preview the website locally</h4>
+  <pre><code class="language-bash">uv run python -m http.server -d docs 8765</code></pre>
+  <p>Open <code>http://localhost:8765</code> in a browser to view the full site.</p>
 
   <h2>Simulation Parameters</h2>
 
@@ -135,7 +142,7 @@
     <tr><td>v_cruise</td><td>3.0 m/s</td><td>Nominal cruise speed</td></tr>
     <tr><td>R_comm</td><td>8.0 m</td><td>Communication radius</td></tr>
     <tr><td>sigma_wind</td><td>2.0 m/s</td><td>Wind turbulence intensity</td></tr>
-    <tr><td>morph_time</td><td>8.0 s</td><td>Formation morph trigger</td></tr>
+    <tr><td>k_avoid</td><td>30.0</td><td>Obstacle avoidance gain</td></tr>
   </table>
 
   <h2>Key Source: LQR Gain Synthesis</h2>
@@ -165,6 +172,10 @@
     v_cruise = params["v_cruise"]
     k_follow = params["k_follow"]
     k_avoid = params["k_avoid"]
+    k_consensus = params["k_consensus"]
+    k_damp = params["k_damp"]
+    rho0 = params["rho0"]
+    follow_dist = params["follow_dist"]
 
     if agent.is_leader:
         to_target = target - agent.pos
@@ -176,9 +187,20 @@
         desired_vel = agents[0].vel + k_follow * pos_error
 
     F_target = k_follow * (desired_vel - agent.vel)
-    F_consensus = compute_consensus_forces(agent, agents, params)
-    F_obstacle = env.compute_obstacle_forces(agent.pos, k_avoid, params["rho0"])
-    F_damping = -params["k_damp"] * agent.vel
+
+    # Consensus only for followers (leader follows waypoints alone)
+    F_consensus = np.zeros(3)
+    if not agent.is_leader:
+        for other in agents:
+            if other.id == agent.id:
+                continue
+            dist = np.linalg.norm(agent.pos - other.pos)
+            if dist < follow_dist:
+                offset_error = (agent.pos - other.pos) - (agent.d_ij - other.d_ij)
+                F_consensus -= k_consensus * offset_error
+
+    F_obstacle = env.compute_obstacle_forces(agent.pos, k_avoid, rho0)
+    F_damping = -k_damp * agent.vel
 
     return F_target + F_consensus + F_obstacle + F_damping</code></pre>
 
@@ -208,6 +230,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+<script>
+document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+  document.querySelector('.sidebar').classList.toggle('open');
+});
+</script>
 
 </body>
 </html>

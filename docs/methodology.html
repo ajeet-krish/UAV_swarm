@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<button class="sidebar-toggle" id="sidebarToggle">&#9776;</button>
 
 <div class="sidebar">
   <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
@@ -44,7 +44,7 @@
     $$ \mathbf{u}_i^{\text{consensus}} = -k_c \sum_{j \in \mathcal{N}_i} \left[ (\mathbf{r}_i - \mathbf{r}_j) - (\mathbf{d}_i - \mathbf{d}_j) \right] $$
   </div>
 
-  <p>The desired offsets \(\mathbf{d}_i\) define the formation shape. By smoothly interpolating \(\mathbf{d}_i(t)\) between two sets of offsets mid-flight, the swarm reconfigures from wedge to diamond geometry while maintaining local connectivity.</p>
+  <p>The desired offsets \(\mathbf{d}_i\) define the formation shape. The wedge is continuously rotated in 3D using a Direction Cosine Matrix (DCM) aligned with the leader's filtered velocity vector, keeping the formation oriented into the direction of travel.</p>
 
   <h2>2. Velocity-Command Guidance Architecture</h2>
 
@@ -66,35 +66,33 @@
 
   <h2>3. Obstacle Geometry and Distance Functions</h2>
 
-  <h3>Box Obstacles (Canyon Walls)</h3>
-  <p>The signed distance to a box is computed by clamping the query point to the box bounds. Interior points (negative distance) receive maximum repulsive force to prevent penetration:</p>
+  <h3>Sphere Obstacles (Orbital Debris)</h3>
+  <p>The signed distance to a sphere is the simplest analytical distance function in 3D. The gradient is exact and points radially from the sphere center:</p>
   <div class="eq-box">
-    $$ \mathbf{c} = \text{clamp}(\mathbf{p}, \mathbf{b}_{\text{min}}, \mathbf{b}_{\text{max}}) $$
-    $$ \rho = \|\mathbf{p} - \mathbf{c}\|_2 \cdot \text{sign}(\text{outside}) $$
+    $$ \rho_k = \|\mathbf{r}_i - \mathbf{o}_k\|_2 - r_k $$
+    $$ \hat{\mathbf{n}}_k = \frac{\mathbf{r}_i - \mathbf{o}_k}{\|\mathbf{r}_i - \mathbf{o}_k\|_2} $$
+    $$ \nabla V_{\text{obstacle}} = \sum_k -2\eta \left( \frac{1}{\rho_k} - \frac{1}{\rho_0} \right) \frac{1}{\rho_k^2} \hat{\mathbf{n}}_k $$
+    <div class="label">Eq. 10: Sphere Signed Distance and Repulsive Gradient</div>
   </div>
 
-  <h3>Cylinder Obstacles (Pillars)</h3>
-  <p>Distance to a finite-height cylinder combines horizontal radial distance with vertical elevation:</p>
-  <div class="eq-box">
-    $$ \rho_{\text{horiz}} = \sqrt{(p_x - c_x)^2 + (p_z - c_z)^2} - R $$
-    $$ \rho_{\text{vert}} = \text{distance to cylinder endcaps} $$
-    $$ \rho = \sqrt{\rho_{\text{horiz}}^2 + \rho_{\text{vert}}^2} \quad \text{(with sign)} $$
-  </div>
+  <h2>4. 3D DCM Formation Rotation</h2>
 
-  <h2>4. Formation Morphing Strategy</h2>
-
-  <p>At \(t = 8.0\) seconds (midway through the 18s simulation), the swarm transitions from a planar wedge to a 3D diamond formation. The offset vectors evolve as:</p>
+  <p>As the leader climbs, dives, and turns through the debris field, the wedge offsets are rotated in 3D using a Direction Cosine Matrix (DCM) aligned with the leader's instantaneous velocity vector:</p>
 
   <div class="eq-box">
-    $$ \mathbf{d}_i(t) = (1 - \alpha(t)) \cdot \mathbf{d}_i^{\text{wedge}} + \alpha(t) \cdot \mathbf{d}_i^{\text{diamond}} $$
-    $$ \alpha(t) = \text{clamp}\left(\frac{t - t_{\text{morph}}}{T_{\text{morph}}}, 0, 1\right) $$
+    $$ \hat{\mathbf{u}}_x = \frac{\dot{\mathbf{r}}_{\text{leader}}}{\|\dot{\mathbf{r}}_{\text{leader}}\|} $$
+    $$ \hat{\mathbf{u}}_z = \frac{\hat{\mathbf{u}}_x \times \hat{\mathbf{k}}_{\text{ref}}}{\|\hat{\mathbf{u}}_x \times \hat{\mathbf{k}}_{\text{ref}}\|} $$
+    $$ \hat{\mathbf{u}}_y = \hat{\mathbf{u}}_z \times \hat{\mathbf{u}}_x $$
+    $$ \mathbf{R} = \begin{bmatrix} \hat{\mathbf{u}}_x & \hat{\mathbf{u}}_y & \hat{\mathbf{u}}_z \end{bmatrix}^T $$
+    $$ \mathbf{d}_i(t) = \mathbf{R}(t) \, \mathbf{d}_i^{\text{nominal}} $$
+    <div class="label">Eq. 11: DCM Construction and Offset Rotation</div>
   </div>
 
-  <p>The morph duration \(T_{\text{morph}} = 2.0\) seconds gives a smooth, visually continuous transition. Formation error spikes during the transient and decays as consensus re-converges.</p>
+  <p>The leader's velocity is low-pass filtered (\( \alpha = 0.05 \)) to prevent wind gusts or avoidance jerks from causing formation snapping. The reference up-vector switches from +Y to +X during near-vertical climbs to maintain a well-conditioned rotation matrix.</p>
 
-  <h3>Wedge Formation (initial)</h3>
+  <h3>Nominal Wedge Offsets</h3>
   <table>
-    <tr><th>Drone</th><th>Offset (x, y, z)</th><th>Role</th></tr>
+    <tr><th>Drone</th><th>Nominal Offset (x, y, z)</th><th>Role</th></tr>
     <tr><td>D0</td><td>(0.0, 0.0, 0.0)</td><td>Leader</td></tr>
     <tr><td>D1</td><td>(-1.5, 0.0, 1.5)</td><td>Left wing</td></tr>
     <tr><td>D2</td><td>(-1.5, 0.0, -1.5)</td><td>Right wing</td></tr>
@@ -104,45 +102,33 @@
     <tr><td>D6</td><td>(-3.0, 0.0, -3.0)</td><td>Far right</td></tr>
   </table>
 
-  <h3>Diamond Formation (morphed)</h3>
-  <table>
-    <tr><th>Drone</th><th>Offset (x, y, z)</th><th>Role</th></tr>
-    <tr><td>D0</td><td>(0.0, 1.5, 0.0)</td><td>Apex (raised)</td></tr>
-    <tr><td>D1</td><td>(-1.5, 0.5, 1.5)</td><td>Upper left</td></tr>
-    <tr><td>D2</td><td>(-1.5, 0.5, -1.5)</td><td>Upper right</td></tr>
-    <tr><td>D3</td><td>(-3.0, -0.5, 2.0)</td><td>Lower left</td></tr>
-    <tr><td>D4</td><td>(-3.0, -0.5, 0.5)</td><td>Lower inner left</td></tr>
-    <tr><td>D5</td><td>(-3.0, -0.5, -0.5)</td><td>Lower inner right</td></tr>
-    <tr><td>D6</td><td>(-3.0, -0.5, -2.0)</td><td>Lower right</td></tr>
-  </table>
-
   <hr class="divider">
 
-  <h2>6. Trajectory Animations</h2>
+  <h2>5. Trajectory Animations</h2>
 
   <h3>Top-Down View (X-Z Plane)</h3>
-  <p>The top-down view shows the swarm flying through the canyon corridor from above. Building walls appear as dark rectangles, pillars as purple circles. The leader is amber, followers are green. Small wireframe circles show the desired formation offset targets.</p>
+  <p>The top-down view shows the swarm flying through the orbital debris field from above. Asteroids appear as purple circles, each with a 3D analytical signed-distance field. The leader is amber, followers are green. Small wireframe circles show the desired 3D DCM-rotated formation offset targets.</p>
 
   <div class="img-row single">
     <figure>
       <img src="assets/images/top_down.gif" alt="Top-down trajectory animation" style="width:100%">
-      <figcaption>Top-down view: swarm transits the canyon corridor with mid-flight wedge-to-diamond morph at t=8.0s</figcaption>
+      <figcaption>Top-down view: swarm navigates the 3D asteroid field with DCM-aligned wedge rotation</figcaption>
     </figure>
   </div>
 
   <h3>Side View (X-Y Plane)</h3>
-  <p>The side view shows altitude profiles. The diamond formation uses vertical separation (leader at +1.5m, lower tier at -0.5m relative to center) which is clearly visible after the morph.</p>
+  <p>The side view shows the altitude profiles as the leader climbs and dives through the waypoint cycle. The DCM rotation lifts the wedge into the direction of travel, creating dynamic vertical separation.</p>
 
   <div class="img-row single">
     <figure>
       <img src="assets/images/side_view.gif" alt="Side view trajectory animation" style="width:100%">
-      <figcaption>Side view: altitude profiles during wedge-to-diamond morph. Vertical separation emerges after t=8.0s.</figcaption>
+      <figcaption>Side view: altitude profiles during 3D DCM wedge rotation through the debris field</figcaption>
     </figure>
   </div>
 
   <hr class="divider">
 
-  <h2>7. Wind Gust Rejection Strategy</h2>
+  <h2>6. Wind Gust Rejection Strategy</h2>
 
   <p>The Dryden wind model injects stochastic velocity perturbations independently on each axis. When a drone is displaced by wind, the consensus force from its neighbors pulls it back into formation. This demonstrates the key advantage of decentralized control: every drone acts as a virtual spring-damper for every neighbor, providing natural disturbance rejection without explicit fault detection.</p>
 
@@ -163,6 +149,12 @@ document.addEventListener("DOMContentLoaded", function () {
     ],
     throwOnError: false
   });
+});
+</script>
+
+<script>
+document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+  document.querySelector('.sidebar').classList.toggle('open');
 });
 </script>
 
