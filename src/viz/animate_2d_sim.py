@@ -1,6 +1,7 @@
 """
 Generate 2D APF path planning MP4 animation from simulation_2d.json.
-Shows corridor, obstacles, APF potential contour, drone trail, HUD.
+Shows corridor, obstacles, APF potential contour, square drone with heading, HUD.
+Matches 3D sim visual style: square drone marker, white obstacle circles.
 """
 
 import json
@@ -9,7 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Polygon
 from matplotlib.colors import LinearSegmentedColormap
 import os
 
@@ -19,9 +20,10 @@ MP4_OUT = "docs/assets/videos/apf_path_2d.mp4"
 X_MIN, X_MAX = -15.0, 15.0
 Y_MIN, Y_MAX = -5.0, 5.0
 
-# Military green color scheme
+# Tron-meets-military color scheme
 GREEN = "#3fb950"
-AMBER = "#d29922"
+DRONE_COLOR = "#d29922"
+DRONE_EDGE = "#c9d1d9"
 BG = "#0a0e14"
 GRID_COLOR = "#21262d"
 TEXT_COLOR = "#8b949e"
@@ -53,7 +55,6 @@ def compute_apf_potential_grid(obstacles, k_avoid, rho0, nx=80, ny=40):
         U = np.zeros_like(rho)
         U[mask] = 0.5 * k_avoid * (1.0 / rho[mask] - 1.0 / rho0) ** 2
         P += U
-    # Normalize for visual scaling
     pmax = P.max()
     if pmax > 0:
         P = np.clip(P / pmax, 0, 1)
@@ -69,25 +70,29 @@ def build_plot(ax, obstacles, Xg, Yg, Pot):
     ax.contourf(Xg, Yg, Pot, levels=20, cmap=APF_CMAP, alpha=0.6, zorder=1)
 
     # Corridor walls
-    ax.axhline(Y_MIN, color=AMBER, linestyle="--", linewidth=1.0, alpha=0.5)
-    ax.axhline(Y_MAX, color=AMBER, linestyle="--", linewidth=1.0, alpha=0.5)
-    ax.axvline(X_MIN, color=AMBER, linestyle="--", linewidth=1.0, alpha=0.5)
-    ax.axvline(X_MAX, color=AMBER, linestyle="--", linewidth=1.0, alpha=0.5)
+    for wall_y in [Y_MIN, Y_MAX]:
+        ax.axhline(wall_y, color=GREEN, linestyle="--", linewidth=1.0, alpha=0.4)
+    for wall_x in [X_MIN, X_MAX]:
+        ax.axvline(wall_x, color=GREEN, linestyle="--", linewidth=1.0, alpha=0.4)
 
-    # Obstacles
-    for obs in obstacles:
+    # Obstacles - white filled with visible edge + O1-O15 numbering
+    for i, obs in enumerate(obstacles):
         c = obs["center"]
         r = obs["radius"]
-        circle = Circle(c, r, linewidth=1.2,
-                        edgecolor=WHITE, facecolor=WHITE, alpha=0.2)
+        circle = Circle(c, r, linewidth=1.0,
+                        edgecolor=WHITE, facecolor=WHITE, alpha=0.12)
         ax.add_patch(circle)
+        ax.text(c[0], c[1], f"O{i+1}", fontsize=7, color=WHITE,
+                alpha=0.7, ha="center", va="center", zorder=12,
+                fontfamily="monospace",
+                bbox=dict(facecolor=BG, edgecolor="none", alpha=0.4,
+                          pad=1))
 
     ax.set_xlim(X_MIN, X_MAX)
     ax.set_ylim(Y_MIN, Y_MAX)
-    ax.set_xlabel("X (m)", color=GREEN, fontsize=10)
-    ax.set_ylabel("Y (m)", color=GREEN, fontsize=10)
-    ax.tick_params(colors=TEXT_COLOR, labelsize=8)
-    ax.grid(True, color=GRID_COLOR, alpha=0.3)
+    ax.tick_params(colors=TEXT_COLOR, labelsize=8, bottom=False, left=False,
+                   labelbottom=False, labelleft=False)
+    ax.grid(True, color=GRID_COLOR, alpha=0.2)
     ax.set_aspect("equal")
 
 
@@ -121,24 +126,28 @@ def main():
     fig, ax = plt.subplots(1, 1, figsize=(12, 6), facecolor="#0d1117")
     build_plot(ax, obstacles, Xg, Yg, Pot)
 
-    # Start/goal markers
-    ax.scatter(*start, s=80, marker="o", color=GREEN, edgecolors=WHITE,
+    # Start/goal markers (minimal)
+    ax.scatter(*start, s=60, marker="o", color=GREEN, edgecolors=WHITE,
                linewidths=0.5, zorder=5, label="Start")
-    ax.scatter(*goal, s=80, marker="*", color=AMBER, edgecolors=WHITE,
+    ax.scatter(*goal, s=60, marker="*", color=GREEN, edgecolors=WHITE,
                linewidths=0.5, zorder=5, label="Goal")
     ax.legend(loc="upper right", fontsize=8, facecolor=BG, edgecolor=GRID_COLOR,
               labelcolor=TEXT_COLOR)
 
-    # Drone dot
-    drone_dot = ax.scatter([], [], s=60, color=AMBER, edgecolors=WHITE,
-                           linewidths=0.8, zorder=10)
+    # Drone square (Polygon — rotated to heading)
+    half = 0.30
+    drone_square = Polygon(np.zeros((4, 2)), closed=True,
+                           facecolor=DRONE_COLOR, edgecolor=DRONE_EDGE,
+                           linewidth=0.8, zorder=10)
+    ax.add_patch(drone_square)
+
+    # Heading line (extends from square center in velocity direction)
+    heading_line, = ax.plot([], [], color=WHITE, linewidth=1.5, alpha=0.7,
+                            solid_capstyle="round", zorder=11)
 
     # Trail
-    trail_line, = ax.plot([], [], color=AMBER, alpha=0.3, linewidth=1.5, zorder=4)
-
-    # Waypoint marker
-    wp_dot = ax.scatter([], [], s=40, marker="s", color="#58a6ff",
-                        edgecolors=WHITE, linewidths=0.5, zorder=6)
+    trail_line, = ax.plot([], [], color=DRONE_COLOR, alpha=0.25, linewidth=1.2,
+                          zorder=4)
 
     # HUD text
     hud = ax.text(0.02, 0.97, "", transform=ax.transAxes, fontsize=9,
@@ -146,19 +155,31 @@ def main():
                   bbox=dict(facecolor=BG, edgecolor=GRID_COLOR, alpha=0.8, pad=4))
 
     trail_x, trail_y = [], []
-    prev_wp = np.array(goal)
+    sq_half = 0.30
+    heading_len = 0.6
+    corners_local = np.array([[-sq_half, -sq_half],
+                              [ sq_half, -sq_half],
+                              [ sq_half,  sq_half],
+                              [-sq_half,  sq_half]])
 
     def update(i):
-        nonlocal prev_wp
         f = selected[i]
         t = f["t"]
         pos = np.array(f["pos"])
         vel = np.array(f["vel"])
         dist = f["dist_to_goal"]
-        F_apf = np.array(f["F_apf"])
         speed = np.linalg.norm(vel)
 
-        drone_dot.set_offsets([pos])
+        # Rotated square
+        theta = np.arctan2(vel[1], vel[0])
+        rot = np.array([[np.cos(theta), -np.sin(theta)],
+                        [np.sin(theta),  np.cos(theta)]])
+        drone_square.set_xy(corners_local @ rot.T + pos)
+
+        # Heading line
+        hx = pos[0] + heading_len * np.cos(theta)
+        hy = pos[1] + heading_len * np.sin(theta)
+        heading_line.set_data([pos[0], hx], [pos[1], hy])
 
         # Trail
         trail_x.append(pos[0])
@@ -168,24 +189,14 @@ def main():
             trail_y.pop(0)
         trail_line.set_data(trail_x, trail_y)
 
-        # Waypoint detection: if dist was large and now small, waypoint switched
-        # SWITCH_THRESHOLD not needed - just show the current target direction
-        # Draw waypoint target: the actual goal minus pos direction
-        target_dir = np.array(goal) - pos
-        if np.linalg.norm(target_dir) > 0.5:
-            wp_dot.set_offsets([goal])
-        else:
-            target_dir = np.array(start) - pos
-            wp_dot.set_offsets([start])
-
         # HUD
         hud.set_text(
             f"t={t:5.1f}s | V={speed:5.2f} m/s | "
             f"d_goal={dist:5.1f}m | "
-            f"|F_APF|={np.linalg.norm(F_apf):5.2f} N"
+            f"v=({vel[0]:5.2f},{vel[1]:5.2f})"
         )
 
-        return drone_dot, trail_line, hud, wp_dot
+        return drone_square, heading_line, trail_line, hud
 
     anim = matplotlib.animation.FuncAnimation(
         fig, update, frames=len(selected), interval=dt_frame * 1000, blit=False

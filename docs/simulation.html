@@ -53,32 +53,35 @@
   <p>Telemetry extracted from the simulation data: formation convergence, graph connectivity, control effort, and obstacle proximity events.</p>
 
   <div class="metrics-grid">
-    <div class="chart-container">
+    <div class="chart-container" style="height:320px;">
       <div class="chart-title">Formation Error over Time</div>
       <div id="metricFormError" style="width:100%;height:85%"></div>
     </div>
-    <div class="chart-container">
+    <p><strong>Formation Error.</strong> This measures the average distance of each drone from its assigned position in the wedge formation. When the error is zero, the swarm is perfectly aligned. The error drops from an initial 26.9 m to a steady state of 1-3 m within the first 15-20 s, showing the consensus controller converges the formation quickly. Residual error persists due to continuous wind gusts (sigma = 2 m/s) and APF deflections around obstacles.</p>
+
+    <div class="chart-container" style="height:320px;">
       <div class="chart-title">Algebraic Connectivity &lambda;<sub>2</sub></div>
       <div id="metricLambda2" style="width:100%;height:85%"></div>
     </div>
-    <div class="chart-container">
+    <p><strong>Algebraic Connectivity (&lambda;&#8322;).</strong> This is the second smallest eigenvalue of the communication graph. A value greater than zero means the network is connected and drones can share information. Higher values indicate stronger connectivity. Here &lambda;&#8322; stays between 4 and 7 throughout the run, well above zero, confirming the formation maintains a complete communication graph at all times - even during obstacle avoidance and wind gusts.</p>
+
+    <div class="chart-container" style="height:320px;">
       <div class="chart-title">Max Control Effort</div>
       <div id="metricControlEffort" style="width:100%;height:85%"></div>
     </div>
-    <div class="chart-container">
+    <p><strong>Control Effort.</strong> This is the maximum thrust demanded from any single drone at each timestep. Initial formation acquisition requires a peak of 26.0 N, well within the 45 N per-axis limit. During cruise the effort settles to 1-3 N, with brief spikes when a drone brakes around an obstacle or rejects a wind gust. The LQR controller keeps all commands within safe limits.</p>
+
+    <div class="chart-container" style="height:320px;">
       <div class="chart-title">Obstacle Proximity Events</div>
       <div id="metricProximity" style="width:100%;height:85%"></div>
     </div>
+    <p><strong>Proximity Events.</strong> Each marker represents a drone passing within 3.5 m of an asteroid surface. The vertical position identifies which drone and which asteroid; the horizontal position marks when it occurred. Events are distributed across all 7 drones and 15 obstacles, with the highest density during the figure-8 waypoint clusters at 15-30 s and 60-75 s. This confirms the APF repulsion actively steers drones through corridor passages rather than avoiding every obstacle from a distance.</p>
   </div>
 
   <hr class="divider">
 
-  <h2>What to Watch For</h2>
+  <h2>Simulation Features</h2>
   <div class="card-grid">
-    <div class="card">
-      <h3>Tron-Style Formation Flight</h3>
-      <p>Seven neon drones (rainbow-coded by index) fly in a 3D DCM heading-aligned wedge. Each drone is an emissive cube with a heading cone, rendered with bloom post-processing for a glowing light-cycle aesthetic. The wedge rotates in 3D to follow the leader.</p>
-    </div>
     <div class="card">
       <h3>Obstacle Negotiation</h3>
       <p>The debris field contains 15 spherical asteroids (white wireframes). APF repulsion forces with analytical signed-distance gradients push drones away from each sphere.</p>
@@ -88,8 +91,8 @@
       <p>Dryden-model turbulence (sigma=2 m/s, tau=5s) perturbs each drone independently. The consensus force from neighboring agents pulls displaced drones back into formation.</p>
     </div>
     <div class="card">
-      <h3>Interactive Controls + Auto-Orbit</h3>
-      <p>Drag to orbit, scroll to zoom. Use the play/pause button and timeline slider to step through 90s of simulation data. Gradient-fading trails show the last 60 positions. Camera auto-orbits when paused for a cinematic overview.</p>
+      <h3>Formation Consensus</h3>
+      <p>Seven drones fly in a 3D DCM heading-aligned wedge formation using graph Laplacian consensus. Each drone continuously adjusts its velocity to track the leader while balancing obstacle repulsion and wind disturbance through the LQR optimal controller.</p>
     </div>
   </div>
 
@@ -122,7 +125,7 @@ function makeMetricLayout(title, yLabel) {
     margin: { l: 40, r: 8, t: 5, b: 25 },
     showlegend: false,
     hovermode: 'x unified',
-    xaxis: { title: { text: '' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', showticklabels: false },
+    xaxis: { title: { text: 'Time (s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', showticklabels: true },
     yaxis: { title: { text: yLabel }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
   };
 }
@@ -148,7 +151,7 @@ fetch(METRICS_DATA_URL)
     Plotly.newPlot('metricLambda2', [{
       x: times, y: lambda2, type: 'scatter', mode: 'lines',
       line: { color: BLUE, width: 1.2 },
-    }], makeMetricLayout('Lambda 2', '\u03BB\u2082'), { responsive: true });
+    }], makeMetricLayout('Lambda 2', '\u03BB\u2082 (unitless)'), { responsive: true });
 
     // Max Control Effort
     const ctrlEff = frames.map(f => f.metrics.max_control_effort);
@@ -161,7 +164,7 @@ fetch(METRICS_DATA_URL)
     const obs = meta.obstacles || [];
     const proxFrames = [];
     const proxLabels = [];
-    const proxColors = ['#ff00ff', '#00ffff', '#ff8800', '#88ff00', '#0088ff', '#ff0088', '#ffee00'];
+    const proxColors = ['#ff00ff', '#00ffff', '#ff8800', '#88ff00', '#0088ff', '#ff0088', '#ffee00', '#ff6600', '#66ff66', '#ff66ff', '#66ffff', '#ffff66', '#ff0066', '#0066ff', '#66ff00'];
     const THRESHOLD = 3.5;
     const MIN_DIST = 0.5;
 
@@ -198,7 +201,7 @@ fetch(METRICS_DATA_URL)
       x: kept.filter(s => s.l === label).map(s => s.t),
       y: kept.filter(s => s.l === label).map(() => yMap[label]),
       type: 'scatter', mode: 'markers',
-      marker: { size: 5, symbol: 'line-ns', color: uniqueLabels.indexOf(label) < proxColors.length ? proxColors[uniqueLabels.indexOf(label)] : TEXT_COLOR, line: { width: 0 } },
+      marker: { size: 7, symbol: 'circle', opacity: 0.75, color: uniqueLabels.indexOf(label) < proxColors.length ? proxColors[uniqueLabels.indexOf(label)] : TEXT_COLOR, line: { width: 0 } },
       name: label,
     }));
 

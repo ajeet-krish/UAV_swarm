@@ -59,6 +59,33 @@ def generate_obstacle_layout(seed=42, num=15, density="heavy"):
     return obstacles
 
 
+def generate_slalom_layout():
+    """Hand-designed slalom corridor forcing close-quarters zigzag navigation."""
+    return [
+        # Gate 1 at x=-7: centered gap
+        {"center": [-7.0,  1.75], "radius": 1.0},
+        {"center": [-7.0, -1.75], "radius": 1.0},
+        # Gate 2 at x=-2: shifted UP
+        {"center": [-2.0,  2.75], "radius": 0.8},
+        {"center": [-2.0, -0.55], "radius": 1.2},
+        # Gate 3 at x=3: shifted DOWN
+        {"center": [ 3.0,  0.55], "radius": 1.2},
+        {"center": [ 3.0, -2.75], "radius": 0.8},
+        # Gate 4 at x=8: centered gap
+        {"center": [ 8.0,  1.75], "radius": 1.0},
+        {"center": [ 8.0, -1.75], "radius": 1.0},
+        # Centerline blockers between gates
+        {"center": [-4.5,  0.0], "radius": 0.5},
+        {"center": [ 0.5,  0.0], "radius": 0.5},
+        {"center": [ 5.5,  0.0], "radius": 0.5},
+        # Scattered fillers (visual density)
+        {"center": [-3.0,  4.0], "radius": 0.5},
+        {"center": [ 1.5,  4.0], "radius": 0.5},
+        {"center": [-0.5, -4.0], "radius": 0.5},
+        {"center": [ 6.0, -4.0], "radius": 0.5},
+    ]
+
+
 def compute_apf_repulsion(pos, obstacles, k_avoid, rho0, max_perturb=8.0):
     """APF repulsive velocity perturbation (m/s) from obstacles."""
     v = np.zeros(2, dtype=np.float64)
@@ -233,8 +260,8 @@ def main():
     print("Initializing 2D APF path planning simulation...")
     os.makedirs("docs/assets/data", exist_ok=True)
 
-    # Fixed obstacle layout (seed=42, heavy density)
-    obstacles = generate_obstacle_layout(seed=42, density="heavy")
+    # Fixed obstacle layout (hand-designed slalom corridor)
+    obstacles = generate_slalom_layout()
     print(f"  Generated {len(obstacles)} obstacles")
 
     # 1. Optimal run for MP4 (k_avoid=4, rho0=3.5)

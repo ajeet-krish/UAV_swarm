@@ -35,7 +35,7 @@
 <div class="main-content">
 
   <h1>2D Corridor Path Planning</h1>
-  <p>APF-based path planning in a constrained corridor (Y&#8201;&#x2208;&#8201;[&#8722;5,&#8201;5], X&#8201;&#x2208;&#8201;[&#8722;15,&#8201;15]) with obstacle avoidance, gain sweep analysis, Monte Carlo validation, and sensitivity characterization.</p>
+  <p>APF-based slalom navigation through a dense obstacle corridor (Y&#8201;&#x2208;&#8201;[&#8722;5,&#8201;5], X&#8201;&#x2208;&#8201;[&#8722;15,&#8201;15]). A hand-designed slalom layout forces close-quarters zigzag navigation through 15 obstacles. Gain sweep analysis, Monte Carlo validation, and sensitivity characterization reveal how k_avoid affects path tightness and success.</p>
 
   <div class="sim-viewport" style="height:400px;">
     <video id="apfVideo" width="100%" height="100%" controls loop playsinline
@@ -46,30 +46,26 @@
 
   <hr class="divider">
 
-  <h2>What to Watch For</h2>
+  <h2>Simulation Features</h2>
   <div class="card-grid">
     <div class="card">
-      <h3>APF Potential Contour</h3>
-      <p>The amber-red background shows the repulsive potential field. The drone follows the negative gradient, balancing target attraction with obstacle repulsion and wall confinement.</p>
+      <h3>Slalom Corridor Layout</h3>
+      <p>Fifteen obstacles arranged in four staggered gates force a zigzag path through the corridor. Small centerline blockers between gates reinforce the slalom, requiring precise APF guidance at each turn.</p>
     </div>
     <div class="card">
-      <h3>Round-Trip Navigation</h3>
-      <p>The drone traverses from start (&#8722;12, 0) to goal (12, 0) and back. Speed varies as repulsion from nearby obstacles perturbs the nominal 3 m/s cruise.</p>
+      <h3>Close-Quarters Navigation</h3>
+      <p>The drone weaves through gaps as narrow as 1.3m between obstacles, clearing edges by fractions of a meter. Speed and heading change rapidly at each gate as APF repulsion steers through tight passes.</p>
     </div>
     <div class="card">
-      <h3>Wall Confinement</h3>
-      <p>Amber dashed lines mark corridor boundaries at Y = &#177;5. The APF wall repulsion term keeps the drone within bounds at all times, even during tight obstacle negotiation.</p>
-    </div>
-    <div class="card">
-      <h3>Gain Sensitivity</h3>
-      <p>The k_avoid parameter controls repulsion strength. The gain sweep overlay and sensitivity heatmap below show how different gain values affect trajectory shape and success rate.</p>
+      <h3>Gain-Dependent Path Variation</h3>
+      <p>Low k_avoid (0.05) cuts corners inside each gate, grazing obstacle edges. High k_avoid (&gt;4) takes wide, cautious arcs. The gain sweep overlay and faceted grid show how each gain negotiates the same slalom differently.</p>
     </div>
   </div>
 
   <hr class="divider">
 
   <h2>Gain Sweep Overlay</h2>
-  <p>Trajectories for ten values of k_avoid (0.05, 0.1, 0.2, 0.5, 1, 2, 3, 4, 6, 10). Very low gains barely react to obstacles; high gains take wide, safe arcs. The fixed layout has 15 obstacles in a heavy-density configuration.</p>
+  <p>Trajectories for ten values of k_avoid through the same slalom layout. Low gains (0.05&#8211;0.2) cut inside each gate, taking the tightest line. Mid-range gains (1&#8211;4) track a clean slalom. High gains (6&#8211;10) take wide, cautious arcs that bulge outward between gates.</p>
 
   <div class="chart-container" style="height:420px;">
     <div id="gainOverlayChart" style="width:100%;height:100%"></div>
@@ -78,67 +74,173 @@
   <hr class="divider">
 
   <h2>Faceted Trajectory Comparison</h2>
-  <p>Each panel shows a single gain value with the same obstacle field. Gains span from barely functional (k_avoid=0.05) through optimal (4) to over-reactive (10).</p>
+  <p>Each panel isolates a single gain value. Obstacles are numbered O1&#8211;O15 as white filled circles. The corridor boundaries (amber dashes) and start/goal markers (green squares) are consistent across all panels. A summary table below maps each gain to its behavioral outcome.</p>
 
-  <div class="chart-container" style="height:500px;">
-    <div id="facetGridChart" style="width:100%;height:100%"></div>
+  <div style="text-align:center;margin:1.5em 0;">
+    <img src="assets/images/trajectory_facets.png" alt="Faceted trajectory comparison" style="max-width:100%;border:1px solid #21262d;border-radius:4px;">
   </div>
+
+  <h3>Results Summary</h3>
+  <table class="results-table">
+    <thead>
+      <tr>
+        <th>k_a</th>
+        <th>Gates Reached</th>
+        <th>Y Span</th>
+        <th>Worst Clearance</th>
+        <th>Behavioral Summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="col-gain" style="color:#ff00ff">0.05</td>
+        <td class="col-gates">All 4 + goal</td>
+        <td>2.1 m</td>
+        <td class="col-worst">0.17 m (O11)</td>
+        <td>Hugs inside edges of every gate, grazing O11 by 17 cm. Fast passage but minimal safety margin. Path stays almost entirely in the upper half of the corridor.</td>
+      </tr>
+      <tr>
+        <td class="col-gain" style="color:#ff8800">0.2</td>
+        <td class="col-gates">All 4 + goal</td>
+        <td>2.3 m</td>
+        <td class="col-worst">0.29 m (O11)</td>
+        <td>Slightly wider than 0.05, still cuts corners aggressively. Remains in the upper half of the corridor. Clearance improves but is still below the 0.5 m caution threshold at O11.</td>
+      </tr>
+      <tr>
+        <td class="col-gain" style="color:#88ff00">0.5</td>
+        <td class="col-gates">All 4 + goal</td>
+        <td>4.9 m</td>
+        <td>0.40 m (O11)</td>
+        <td>First gain to cross the corridor centerline (y goes to &#8722;2.4 m). Begins showing a true zigzag pattern as repulsion is strong enough to deflect the drone downward between gates.</td>
+      </tr>
+      <tr>
+        <td class="col-gain" style="color:#0088ff">2</td>
+        <td class="col-gates">Gates 1&#8211;3</td>
+        <td>2.7 m</td>
+        <td>0.60 m (O9)</td>
+        <td>Stalls at x = 6.2 m, never reaches gate 4. After passing gate 3 the drone drifts upward and encounters a local equilibrium between attraction toward the goal and repulsion from O11 and O7/O8. Velocity drops near zero.</td>
+      </tr>
+      <tr>
+        <td class="col-gain" style="color:#3fb950">4</td>
+        <td class="col-gates">All 4 + goal</td>
+        <td>7.6 m</td>
+        <td>0.41 m (O11)</td>
+        <td>Optimal gain. Full zigzag through all gates with wide, clean arcs. The repulsion is just strong enough to deflect into each gate opening without overshooting. The drone completes the course with the widest y-span and best combination of clearance and efficiency.</td>
+      </tr>
+      <tr>
+        <td class="col-gain" style="color:#bc8cff">10</td>
+        <td class="col-gates">Gate 1 only</td>
+        <td>1.7 m</td>
+        <td class="col-worst">0.17 m (O9)</td>
+        <td>Repulsion overwhelms attraction immediately. The drone is pushed back toward the start after passing gate 1, never reaching gate 2. Total forward progress is only 3.2 m. The APF field near O1/O2 creates an impassable barrier.</td>
+      </tr>
+    </tbody>
+  </table>
 
   <hr class="divider">
 
   <h2>Clearance per Gain</h2>
-  <p>Minimum Euclidean clearance from the drone to each obstacle over the full trajectory, per gain value. Lower gains (0.05&#8211;0.5) can pass perilously close; k_avoid=4 provides a good balance of safety and path efficiency. The red dashed line marks the 0.5m caution threshold.</p>
+  <p>Minimum Euclidean clearance from the drone to each obstacle over the full trajectory, per gain value. Low gains (0.05&#8211;0.2) brush within centimeters of obstacle edges as they cut inside the gates. Higher gains maintain a wider safety margin. The red dashed line marks the 0.5m caution threshold.</p>
 
-  <div class="chart-container" style="height:300px;">
+  <div class="chart-container" style="height:480px;">
     <div id="clearanceChart" style="width:100%;height:100%"></div>
   </div>
+
+  <p><strong>Analysis.</strong> At very low gains (k_a &le; 0.2) the drone scrapes within 0.17&#8211;0.29 m of O11 (the centerline blocker at x = 5.5). Gains 0.5&#8211;4 maintain a safer 0.40 m+ minimum. The 0.5 m caution threshold is crossed by most gains, though no gain results in collision (clearance &lt; 0 m) for this layout. The narrowest passages consistently occur at the three centerline blockers (O9, O10, O11) and the gate obstacles (O1&#8211;O8), where the drone must balance attraction and repulsion through gaps as narrow as 1.3 m. Gain k_a = 2 shows anomalously high clearance (0.60 m at O9) because it stalls before reaching the tightest passages at gate 4.</p>
+
+  <hr class="divider">
+
+  <h2>Clearance Trade-Study Heatmap</h2>
+  <p>Trade-study matrix correlating GNC safety margins across all 10 gain values and 15 obstacles. This heatmap identifies exactly which obstacles act as critical bottlenecks for each control regime. Red and orange cells denote violations of the 0.5m safety limit, yellow indicates marginal clearance, and green indicates safe passage.</p>
+
+  <div class="chart-container" style="height:480px;">
+    <div id="clearanceHeatmap" style="width:100%;height:100%"></div>
+  </div>
+
+  <p><strong>Analysis.</strong> The heatmap reveals a clear transition between behavioral regimes. At low gains (k_a &le; 0.2), safety violations are heavily concentrated at O11 (the centerline blocker between gates 3 and 4) and Gate 1 obstacles (O1, O2). As k_a increases, clearance systematically improves across all obstacles. At the optimal gain (k_a = 4), every single obstacle is navigated with a healthy margin, showing no red or orange cells. For extremely high gains (k_a &ge; 6), the heatmap shows high clearance on later obstacles (O5&#8211;O15) simply because the drone is repelled backwards and never reaches them, which is represented by empty or safe values.</p>
 
   <hr class="divider">
 
   <h2>Speed Profile Overlay</h2>
-  <p>Instantaneous speed over time for each gain value. Low-gain trajectories barely slow down near obstacles (minimal detour), while high-gain trajectories brake through tight corridors.</p>
+  <p>Instantaneous speed over time for each gain. Low-gain trajectories maintain near-cruise speed through the slalom. High-gain trajectories brake through each gate, then accelerate in the straightaways between them.</p>
 
-  <div class="chart-container" style="height:350px;">
+  <div class="chart-container" style="height:500px;">
     <div id="speedOverlayChart" style="width:100%;height:100%"></div>
   </div>
 
-  <hr class="divider">
-
-  <h2>APF Force Breakdown</h2>
-  <p>Stacked area chart showing attractive, repulsive (obstacle), and wall forces acting on the drone during the optimal trajectory (k_avoid=4, rho0=3.5). Attraction dominates in open space, repulsion spikes near obstacles, and wall forces confine the drone to the corridor.</p>
-
-  <div class="chart-container" style="height:300px;">
-    <div id="forceBreakdownChart" style="width:100%;height:100%"></div>
-  </div>
+  <p><strong>Analysis.</strong> Low gains (0.05&#8211;0.5) maintain near-cruise speed (3 m/s) through the entire course, slowing only slightly at each gate. At k_a = 2 the drone stalls at x &#8776; 6.2 m (t &#8776; 17 s), where velocity drops to near zero as APF forces reach a local equilibrium &#8211; the attraction toward the goal is balanced by repulsion from O11 and gate 4 obstacles. Gains 3&#8211;4 show clean acceleration/deceleration cycles at each gate crossing, with speed dipping at each tight passage and recovering in the open segments between gates. At k_a &ge; 6 the drone never escapes gate 1&#8217;s repulsion field; speed peaks briefly then decays as the drone is pushed back toward the start.</p>
 
   <hr class="divider">
 
-  <h2>Monte Carlo Validation</h2>
-  <p>Twenty random obstacle layouts (15 obstacles each, heavy-density with narrow gaps) were generated with stochastic radii (0.3&#8211;2.2m). The APF guidance at k_avoid=4, rho0=3.5 achieved a perfect 20/20 success rate.</p>
+  <h2>Speed-Space Phase Portrait</h2>
+  <p>Phase-space portrait plotting instantaneous speed versus continuous X-position along the corridor. This representation highlights the spatial location of braking actions. Vertical amber-tinted bands indicate the exact physical bounds of the four slalom gates (x = -7, -2, 3, 8).</p>
 
-  <div class="stats">
-    <div class="stat"><span class="num">20/20</span><span class="lbl">Success Rate</span></div>
-    <div class="stat"><span class="num">0</span><span class="lbl">Collisions</span></div>
-    <div class="stat"><span class="num">15</span><span class="lbl">Obstacles per Layout</span></div>
+  <div class="chart-container" style="height:500px;">
+    <div id="speedPhaseChart" style="width:100%;height:100%"></div>
   </div>
 
-  <div class="chart-container" style="height:250px;">
-    <div id="mcDifficultyChart" style="width:100%;height:100%"></div>
-  </div>
+  <p><strong>Analysis.</strong> This spatial phase portrait maps velocity regulation directly to physical corridor geography. At the optimal gain (k_a = 4), we observe clear, periodic velocity valleys aligned precisely with the gate positions, showing systematic deceleration down to 1.5 m/s at gate entry followed by acceleration back to cruise velocity. The corner-cutter (k_a = 0.05) exhibits near-zero velocity regulation, cutting flatly across the gate zones. The stall regime (k_a = 2) is visible as a trajectory that enters Gate 3, then plunges vertically to zero speed at x = 6.2m, failing to recover.</p>
 
   <hr class="divider">
 
-  <h2>Sensitivity Analysis</h2>
-  <p>Two complementary views. <strong>Left:</strong> Single-layout binary sweep (9&#8201;&#x00D7;&#8201;9) showing success/failure across the k_avoid &#215; rho0 parameter plane. <strong>Right:</strong> MC stress sensitivity aggregating failure probability across all 20 heavy-density layouts. This reveals the robust operating region and where failures begin to appear.</p>
+  <h2>Gate Performance Trade-off Dashboard</h2>
+  <p>Segmented mission-phase performance dashboard. By breaking the continuous trajectory into discrete gate segments, this dashboard analyzes key navigation tradeoffs: reachability, speed control, safety margin erosion, and transit efficiency.</p>
 
-  <div class="chart-row two-col">
-    <div class="chart-container" style="height:380px;">
-      <div id="sensitivityChart" style="width:100%;height:100%"></div>
+  <div class="metrics-grid">
+    <div class="chart-container" style="height:350px;">
+      <div id="gateReachChart" style="width:100%;height:100%"></div>
     </div>
-    <div class="chart-container" style="height:380px;">
-      <div id="mcStressChart" style="width:100%;height:100%"></div>
+    <div class="chart-container" style="height:350px;">
+      <div id="gateSpeedChart" style="width:100%;height:100%"></div>
+    </div>
+    <div class="chart-container" style="height:350px;">
+      <div id="gateClearanceChart" style="width:100%;height:100%"></div>
+    </div>
+    <div class="chart-container" style="height:350px;">
+      <div id="gateTransitChart" style="width:100%;height:100%"></div>
     </div>
   </div>
+
+  <p><strong>Analysis.</strong> Decomposing the slalom into gate phases reveals the precise operational limits of APF guidance. The <strong>Reachability</strong> panel shows that only k_a &le; 0.5 and k_a = 4 successfully navigate the entire corridor. The <strong>Crossing Speed</strong> panel demonstrates that lower gains cross gates with much higher velocity (up to 4 m/s), while the optimal gain (k_a = 4) exhibits active braking down to 1.5 m/s for maximum stability. The <strong>Clearance per Zone</strong> panel shows that centerline blockers (O9&#8211;O11) consistently present the tightest margins across all successful runs. The <strong>Segment Transit</strong> panel highlights the extreme cost of excessive repulsion: as k_a increases, transit times between gates rise exponentially before resulting in failure.</p>
+
+  <hr class="divider">
+
+  <h2>Gain Bifurcation & Dynamical Regimes</h2>
+  <p>State bifurcation diagram plotting the control parameter (k_avoid) against the final forward position reached by the drone. Bubble size represents lateral swing effort (y-span), while color indicates the overall worst clearance. This view reveals the discrete phase transitions and behavioral regimes of the system.</p>
+
+  <div class="chart-container" style="height:480px;">
+    <div id="bifurcationChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <p><strong>Analysis.</strong> This diagram maps the complete state space of the GNC parameter trade-off. We identify four distinct dynamical regimes: (1) <strong>Corner-cutting</strong> (k_a &le; 0.5) where the drone completes the course with minimal lateral swing but dangerously low clearance; (2) <strong>Local Equilibrium Stall</strong> (k_a = 1, 2) where the drone gets trapped in a local minimum at Gate 3 or Gate 4; (3) <strong>Optimal Slalom</strong> (k_a = 3, 4) which achieves safe, high-clearance navigation through all gates; and (4) <strong>Saturating Repulsion</strong> (k_a &ge; 6) where the repulsion field of Gate 1 forms an impassable potential barrier, pushing the drone backwards immediately.</p>
+
+  <hr class="divider">
+
+  <h2>Parameter Space Design Envelope</h2>
+  <p>Deterministic and Monte Carlo safety envelope maps. The top panel shows the success/failure outcome in the k_avoid &#215; &#961;0 parameter plane for the hand-designed slalom corridor. The bottom panel shows failure probability contours across 20 randomized heavy-density layouts, delineating the robust GNC operating envelope.</p>
+
+  <div class="chart-container" style="height:400px;">
+    <div id="sensitivityChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <div class="chart-container" style="height:400px;">
+    <div id="mcStressChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <p><strong>Analysis.</strong> The deterministic sweep (top) confirms 100% navigation success across the full k_avoid &#215; &#961;0 parameter space for the hand-designed slalom corridor. This demonstrates that the slalom layout, while geometrically narrow, contains no local APF equilibrium traps that cause failure from parameter mis-tuning alone. The Monte Carlo sweep (bottom) introduces variability through 20 random heavy-density obstacle layouts with stochastic radii and placement. Failure probability contours reveal a narrow region near high k_avoid (&#8776; 5&#8211;10) and intermediate &#961;0 (&#8776; 2&#8211;4) where the failure rate reaches 5% &#8211; the only zone where excessive repulsion gain combined with a moderate influence radius creates APF equilibrium failures. The remaining 90% of the parameter plane shows zero failure probability, demonstrating robust GNC performance across diverse obstacle configurations.</p>
+
+  <hr class="divider">
+
+  <h2>Future Enhancements</h2>
+  <p>Ideas under consideration for extending the 2D analysis suite:</p>
+  <ul class="enhance-list">
+    <li><strong>Gate-colored trajectory segments</strong> &#8211; color-code each portion of the trajectory by the inter-gate region (e.g., blue between G1&#8211;G2, amber G2&#8211;G3, green G3&#8211;G4) to make the gate sequence visually explicit.</li>
+    <li><strong>Collision-risk overlay</strong> &#8211; shade regions on the facet plots where clearance &lt; 0.3 m in red, immediately highlighting danger zones without needing to cross-reference the clearance chart.</li>
+    <li><strong>Return vs. forward path styling</strong> &#8211; use solid lines for the forward pass (L &#8594; R) and dashed lines for the return pass (R &#8594; L) to distinguish the two traversals in the gain overlay.</li>
+    <li><strong>Gate direction arrows</strong> &#8211; overlay small arrows at each gate in the facet plots and MP4 showing the required direction change (&#8593; at G2, &#8595; at G3, &#8594; at G1/G4).</li>
+    <li><strong>Time-domain sync with video</strong> &#8211; connect a scrubber/timeline across the MP4, speed profile, and force breakdown so hovering in one chart highlights the corresponding frame in the video.</li>
+    <li><strong>rho0 sensitivity overlay</strong> &#8211; extend the gain sweep to also overlay 2&#8211;3 rho0 values (e.g., 1.5, 3.5, 6.0) for a fixed k_avoid, showing how the influence radius affects path shape.</li>
+  </ul>
 
 </div>
 
@@ -155,9 +257,6 @@ const TEXT_COLOR = '#8b949e';
 
 const GAIN_KEYS = ['0.05', '0.1', '0.2', '0.5', '1', '2', '3', '4', '6', '10'];
 const GAIN_COLORS = ['#ff00ff', '#00ffff', '#ff8800', '#88ff00', '#0088ff', '#ff0088', '#ffee00', '#3fb950', '#58a6ff', '#bc8cff'];
-
-const FACET_GAINS = ['0.05', '0.2', '0.5', '2', '4', '10'];
-const FACET_COLORS = ['#ff00ff', '#ff8800', '#88ff00', '#0088ff', '#3fb950', '#bc8cff'];
 
 fetch('assets/data/simulation_2d.json')
   .then(r => r.json())
@@ -194,11 +293,11 @@ fetch('assets/data/simulation_2d.json')
     });
     gainTraces.push({
       x: [-12], y: [0], type: 'scatter', mode: 'markers',
-      marker: { size: 10, color: GREEN, symbol: 'circle' }, name: 'Start',
+      marker: { size: 10, color: GREEN, symbol: 'square' }, name: 'Start',
     });
     gainTraces.push({
       x: [12], y: [0], type: 'scatter', mode: 'markers',
-      marker: { size: 12, color: AMBER, symbol: 'star' }, name: 'Goal',
+      marker: { size: 10, color: GREEN, symbol: 'square' }, name: 'Goal',
     });
 
     const gainLayout = {
@@ -210,88 +309,17 @@ fetch('assets/data/simulation_2d.json')
       showlegend: true,
       legend: { font: { size: 8, color: TEXT_COLOR }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
       hovermode: 'closest',
+      annotations: meta.obstacles.map((o, i) => ({
+        x: o.center[0], y: o.center[1],
+        text: 'O' + (i + 1),
+        showarrow: false,
+        font: { size: 7, color: '#ffffff', family: 'JetBrains Mono, monospace' },
+        xanchor: 'center', yanchor: 'middle',
+      })),
     };
     Plotly.newPlot('gainOverlayChart', gainTraces, gainLayout, { responsive: true, displayModeBar: true });
 
-    // ── Faceted 2x3 Grid ──
-    const facetTraces = [];
-    function obsCircles(obsList, xAxis, yAxis) {
-      const traces = [];
-      for (const obs of obsList) {
-        const cx = obs.center[0], cy = obs.center[1], r = obs.radius;
-        const theta = Array.from({ length: 50 }, (_, i) => (i / 49) * 2 * Math.PI);
-        traces.push({
-          x: theta.map(t => cx + r * Math.cos(t)),
-          y: theta.map(t => cy + r * Math.sin(t)),
-          type: 'scatter', mode: 'lines', fill: 'toself',
-          line: { color: '#ffffff', width: 0.6 },
-          fillcolor: 'rgba(255,255,255,0.08)',
-          showlegend: false, hoverinfo: 'skip',
-          xaxis: xAxis, yaxis: yAxis,
-        });
-      }
-      return traces;
-    }
-    function wallRect(xAxis, yAxis) {
-      return [{
-        x: [-15, 15, 15, -15, -15],
-        y: [-5, -5, 5, 5, -5],
-        type: 'scatter', mode: 'lines',
-        line: { color: AMBER, width: 0.8, dash: 'dash' },
-        showlegend: false, hoverinfo: 'skip',
-        xaxis: xAxis, yaxis: yAxis,
-      }];
-    }
-    function startGoal(xAxis, yAxis) {
-      return [
-        { x: [-12], y: [0], type: 'scatter', mode: 'markers',
-          marker: { size: 8, color: GREEN, symbol: 'circle' },
-          showlegend: false, hoverinfo: 'skip', xaxis: xAxis, yaxis: yAxis },
-        { x: [12], y: [0], type: 'scatter', mode: 'markers',
-          marker: { size: 10, color: AMBER, symbol: 'star' },
-          showlegend: false, hoverinfo: 'skip', xaxis: xAxis, yaxis: yAxis },
-      ];
-    }
-
-    FACET_GAINS.forEach((ka, i) => {
-      const xKey = i === 0 ? 'x' : 'x' + (i + 1);
-      const yKey = i === 0 ? 'y' : 'y' + (i + 1);
-      const gd = data.gain_sweep[ka];
-      facetTraces.push({
-        x: gd.frames.map(f => f.pos[0]),
-        y: gd.frames.map(f => f.pos[1]),
-        type: 'scatter', mode: 'lines',
-        line: { color: FACET_COLORS[i], width: 1.5 },
-        name: `k_a = ${ka}`,
-        xaxis: xKey, yaxis: yKey,
-      });
-      facetTraces.push(...obsCircles(meta.obstacles, xKey, yKey));
-      facetTraces.push(...wallRect(xKey, yKey));
-      facetTraces.push(...startGoal(xKey, yKey));
-    });
-
-    const facetLayout = {
-      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
-      grid: { rows: 2, columns: 3, pattern: 'independent' },
-      margin: { l: 30, r: 10, t: 25, b: 25 },
-      hovermode: 'closest', showlegend: false,
-    };
-    for (let i = 0; i < 6; i++) {
-      const xKey = i === 0 ? 'xaxis' : 'xaxis' + (i + 1);
-      const yKey = i === 0 ? 'yaxis' : 'yaxis' + (i + 1);
-      facetLayout[xKey] = {
-        title: { text: '' },
-        range: [-15, 15], gridcolor: GRID_COLOR, zerolinecolor: '#30363d',
-        showticklabels: i >= 3, dtick: 5,
-      };
-      facetLayout[yKey] = {
-        title: { text: `k_a = ${FACET_GAINS[i]}` },
-        range: [-5, 5], gridcolor: GRID_COLOR, zerolinecolor: '#30363d',
-        showticklabels: i % 3 === 0,
-      };
-    }
-    Plotly.newPlot('facetGridChart', facetTraces, facetLayout, { responsive: true, displayModeBar: false });
+    // ── Faceted 2x3 Grid (static image, generated by src/viz/plot_2d_facets.py) ──
 
     // ── Clearance per Gain ──
     const obsList = meta.obstacles;
@@ -314,8 +342,8 @@ fetch('assets/data/simulation_2d.json')
       clearTraces.push({
         x: xVals, y: yVals,
         type: 'scatter', mode: 'lines+markers',
-        marker: { size: 6, color: obsColors[oi % obsColors.length] },
-        line: { color: obsColors[oi % obsColors.length], width: 1, dash: 'dot' },
+        marker: { size: 10, color: obsColors[oi % obsColors.length] },
+        line: { color: obsColors[oi % obsColors.length], width: 2, dash: 'dot' },
         name: `O${oi + 1}`,
       });
     }
@@ -329,7 +357,7 @@ fetch('assets/data/simulation_2d.json')
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
       font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
       xaxis: { title: { text: 'k_avoid' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
-      yaxis: { title: { text: 'Min Clearance (m)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'Min Clearance (m)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', dtick: 0.5 },
       margin: { l: 50, r: 10, t: 5, b: 35 },
       showlegend: true,
       legend: { font: { size: 8, color: TEXT_COLOR }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
@@ -341,7 +369,7 @@ fetch('assets/data/simulation_2d.json')
       x: data.gain_sweep[ka].frames.map(f => f.t),
       y: data.gain_sweep[ka].frames.map(f => f.speed),
       type: 'scatter', mode: 'lines',
-      line: { color: GAIN_COLORS[i], width: 1 },
+      line: { color: GAIN_COLORS[i], width: 2 },
       name: `k_a = ${ka}`,
     }));
     speedTraces.push({
@@ -354,103 +382,382 @@ fetch('assets/data/simulation_2d.json')
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
       font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
       xaxis: { title: { text: 'Time (s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
-      yaxis: { title: { text: 'Speed (m/s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'Speed (m/s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', range: [0, 12], dtick: 2 },
       margin: { l: 45, r: 10, t: 5, b: 30 },
       showlegend: true,
       legend: { font: { size: 8, color: TEXT_COLOR }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
       hovermode: 'x unified',
+      hoverlabel: {
+        bgcolor: '#000000',
+        font: { color: '#c9d1d9', family: 'JetBrains Mono, monospace', size: 10 },
+      },
     }, { responsive: true, displayModeBar: false });
 
-    // ── APF Force Breakdown (stacked area) ──
-    const tArr = opt.frames.map(f => f.t);
-    const fAtt = opt.frames.map(f => f.F_att);
-    const fRep = opt.frames.map(f => f.F_rep);
-    const fWall = opt.frames.map(f => f.F_wall);
-    Plotly.newPlot('forceBreakdownChart', [
-      { x: tArr, y: fAtt, type: 'scatter', mode: 'lines', stackgroup: 'forces', fillcolor: '#3fb950', line: { color: '#3fb950', width: 1 }, name: 'Attractive' },
-      { x: tArr, y: fRep, type: 'scatter', mode: 'lines', stackgroup: 'forces', fillcolor: '#f8514950', line: { color: '#f85149', width: 1 }, name: 'Repulsive' },
-      { x: tArr, y: fWall, type: 'scatter', mode: 'lines', stackgroup: 'forces', fillcolor: '#d2992250', line: { color: '#d29922', width: 1 }, name: 'Wall' },
-    ], {
+    // ── Clearance Trade-Study Heatmap ──
+    const heatmapZ = [];
+    for (const ka of GAIN_KEYS) {
+      const row = [];
+      const frames = data.gain_sweep[ka].frames;
+      for (const obs of obsList) {
+        let minD = Infinity;
+        const oc = obs.center, or = obs.radius;
+        for (const f of frames) {
+          const dx = f.pos[0] - oc[0];
+          const dy = f.pos[1] - oc[1];
+          const dist = Math.sqrt(dx*dx + dy*dy) - or;
+          if (dist < minD) minD = dist;
+        }
+        row.push(minD);
+      }
+      heatmapZ.push(row);
+    }
+
+    Plotly.newPlot('clearanceHeatmap', [{
+      z: heatmapZ,
+      x: obsList.map((_, i) => `O${i+1}`),
+      y: GAIN_KEYS,
+      type: 'heatmap',
+      colorscale: [
+        [0.0, '#f85149'],
+        [0.15, '#f85149'],
+        [0.25, '#d29922'],
+        [0.4, '#d29922'],
+        [0.5, '#3fb950'],
+        [1.0, '#56d364']
+      ],
+      zmin: 0.0,
+      zmax: 2.0,
+      text: heatmapZ.map(row => row.map(v => v.toFixed(2) + 'm')),
+      texttemplate: '%{text}',
+      showscale: true,
+      colorbar: { title: { text: 'Clearance' }, tickfont: { size: 8 } },
+      hovertemplate: 'k_avoid=%{y}<br>Obstacle=%{x}<br>Min Clearance: %{z:.2f}m<extra></extra>',
+    }], {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+      xaxis: { title: { text: 'Obstacle' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'k_avoid' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      margin: { l: 55, r: 10, t: 25, b: 45 },
+    }, { responsive: true, displayModeBar: false });
+
+    // ── Speed-Space Phase Portrait ──
+    const phaseTraces = GAIN_KEYS.map((ka, i) => {
+      const frames = data.gain_sweep[ka].frames;
+      let color = '#30363d';
+      let width = 1;
+      let opacity = 0.25;
+      let showlegend = false;
+      if (ka === '0.05') { color = '#ff00ff'; width = 2.5; opacity = 1; showlegend = true; }
+      if (ka === '4') { color = '#3fb950'; width = 2.5; opacity = 1; showlegend = true; }
+      if (ka === '10') { color = '#bc8cff'; width = 2.5; opacity = 1; showlegend = true; }
+      
+      return {
+        x: frames.map(f => f.pos[0]),
+        y: frames.map(f => f.speed),
+        type: 'scatter', mode: 'lines',
+        line: { color, width },
+        opacity,
+        name: `k_a = ${ka}` + (ka === '4' ? ' (Opt)' : (ka === '0.05' ? ' (Agg)' : ' (Push)')),
+        showlegend,
+        hovertemplate: `k_a = ${ka}<br>X: %{x:.2f}m<br>Speed: %{y:.2f} m/s<extra></extra>`
+      };
+    });
+
+    Plotly.newPlot('speedPhaseChart', phaseTraces, {
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
       font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
-      xaxis: { title: { text: 'Time (s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
-      yaxis: { title: { text: 'Force Magnitude (m/s\u00B2)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
-      margin: { l: 55, r: 10, t: 5, b: 30 },
+      xaxis: { title: { text: 'X Position (m)' }, range: [-13, 13], gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'Speed (m/s)' }, range: [0, 12], gridcolor: GRID_COLOR, zerolinecolor: '#30363d', dtick: 2 },
+      margin: { l: 45, r: 10, t: 25, b: 45 },
       showlegend: true,
       legend: { font: { size: 9, color: TEXT_COLOR }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
-      hovermode: 'x unified',
+      hovermode: 'closest',
+      shapes: [
+        { type: 'rect', xref: 'x', yref: 'paper', x0: -7.5, x1: -6.5, y0: 0, y1: 1, fillcolor: 'rgba(210,153,34,0.06)', line: { width: 0 } },
+        { type: 'rect', xref: 'x', yref: 'paper', x0: -2.5, x1: -1.5, y0: 0, y1: 1, fillcolor: 'rgba(210,153,34,0.06)', line: { width: 0 } },
+        { type: 'rect', xref: 'x', yref: 'paper', x0: 2.5, x1: 3.5, y0: 0, y1: 1, fillcolor: 'rgba(210,153,34,0.06)', line: { width: 0 } },
+        { type: 'rect', xref: 'x', yref: 'paper', x0: 7.5, x1: 8.5, y0: 0, y1: 1, fillcolor: 'rgba(210,153,34,0.06)', line: { width: 0 } }
+      ],
+      annotations: [
+        { x: -7, y: 11, text: 'G1', showarrow: false, font: { color: AMBER, size: 8 } },
+        { x: -2, y: 11, text: 'G2', showarrow: false, font: { color: AMBER, size: 8 } },
+        { x: 3, y: 11, text: 'G3', showarrow: false, font: { color: AMBER, size: 8 } },
+        { x: 8, y: 11, text: 'G4', showarrow: false, font: { color: AMBER, size: 8 } }
+      ]
     }, { responsive: true, displayModeBar: false });
 
-    // ── MC Layout Difficulty ──
-    const mcDiff = data.mc_sensitivity.layout_difficulty;
-    Plotly.newPlot('mcDifficultyChart', [{
-      x: mcDiff.map(d => d.seed),
-      y: mcDiff.map(d => d.failure_rate * 100),
+    // ── Gate Performance Trade-off Dashboard ──
+    const dashboardGains = ['0.05', '0.2', '0.5', '4'];
+    const dashboardColors = ['#ff00ff', '#ff8800', '#88ff00', '#3fb950'];
+
+    const reachY = GAIN_KEYS.map(ka => {
+      const frames = data.gain_sweep[ka].frames;
+      const maxX = Math.max(...frames.map(f => f.pos[0]));
+      if (maxX >= 11.5) return 5;
+      if (maxX >= 8.0) return 4;
+      if (maxX >= 3.0) return 3;
+      if (maxX >= -2.0) return 2;
+      if (maxX >= -7.0) return 1;
+      return 0;
+    });
+
+    Plotly.newPlot('gateReachChart', [{
+      x: GAIN_KEYS,
+      y: reachY,
       type: 'bar',
+      marker: { color: GAIN_KEYS.map(ka => GAIN_COLORS[GAIN_KEYS.indexOf(ka)]) },
+      hovertemplate: 'k_a=%{x}<br>Score: %{y}/5<extra></extra>'
+    }], {
+      title: { text: '1. Reachability Score (0-5)', font: { size: 11, color: GREEN } },
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+      xaxis: { title: { text: 'k_avoid' }, gridcolor: GRID_COLOR },
+      yaxis: { title: { text: 'Gates Passed' }, gridcolor: GRID_COLOR, range: [0, 5], dtick: 1, ticktext: ['Start','Gate 1','Gate 2','Gate 3','Gate 4','Goal'], tickvals: [0,1,2,3,4,5] },
+      margin: { l: 60, r: 10, t: 30, b: 35 },
+    }, { responsive: true, displayModeBar: false });
+
+    const gateCenters = [-7.0, -2.0, 3.0, 8.0];
+    const speedTracesDashboard = dashboardGains.map((ka, idx) => {
+      const frames = data.gain_sweep[ka].frames;
+      const speeds = gateCenters.map(xc => {
+        const fIdx = frames.findIndex(f => f.pos[0] >= xc);
+        return fIdx !== -1 ? frames[fIdx].speed : null;
+      });
+      return {
+        x: ['Gate 1', 'Gate 2', 'Gate 3', 'Gate 4'],
+        y: speeds,
+        type: 'scatter', mode: 'lines+markers',
+        line: { color: dashboardColors[idx], width: 2 },
+        marker: { size: 8 },
+        name: `k_a = ${ka}`,
+        connectgaps: false,
+        hovertemplate: `k_a=${ka}<br>%{x}: %{y:.2f} m/s<extra></extra>`
+      };
+    });
+
+    Plotly.newPlot('gateSpeedChart', speedTracesDashboard, {
+      title: { text: '2. Gate Crossing Speed', font: { size: 11, color: GREEN } },
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+      xaxis: { gridcolor: GRID_COLOR },
+      yaxis: { title: { text: 'Speed (m/s)' }, gridcolor: GRID_COLOR, range: [0, 10] },
+      margin: { l: 40, r: 10, t: 30, b: 35 },
+      showlegend: true,
+      legend: { font: { size: 8 }, bgcolor: 'rgba(0,0,0,0.5)', x: 0.05, y: 0.1 }
+    }, { responsive: true, displayModeBar: false });
+
+    const gateZones = [
+      { name: 'Gate 1', indices: [0, 1] },
+      { name: 'Gate 2', indices: [2, 3] },
+      { name: 'Gate 3', indices: [4, 5] },
+      { name: 'Gate 4', indices: [6, 7] },
+      { name: 'Centerline', indices: [8, 9, 10] }
+    ];
+
+    const clearanceTracesDashboard = dashboardGains.map((ka, idx) => {
+      const frames = data.gain_sweep[ka].frames;
+      const zoneWorst = gateZones.map(zone => {
+        let minZ = Infinity;
+        for (const idxO of zone.indices) {
+          const obs = obsList[idxO];
+          const oc = obs.center, or = obs.radius;
+          for (const f of frames) {
+            const dx = f.pos[0] - oc[0];
+            const dy = f.pos[1] - oc[1];
+            const dist = Math.sqrt(dx*dx + dy*dy) - or;
+            if (dist < minZ) minZ = dist;
+          }
+        }
+        return minZ === Infinity ? null : minZ;
+      });
+
+      return {
+        x: gateZones.map(z => z.name),
+        y: zoneWorst,
+        type: 'bar',
+        name: `k_a = ${ka}`,
+        marker: { color: dashboardColors[idx] },
+        hovertemplate: `k_a=${ka}<br>%{x} Clearance: %{y:.2f}m<extra></extra>`
+      };
+    });
+
+    Plotly.newPlot('gateClearanceChart', clearanceTracesDashboard, {
+      title: { text: '3. Min Clearance per Zone', font: { size: 11, color: GREEN } },
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+      xaxis: { gridcolor: GRID_COLOR },
+      yaxis: { title: { text: 'Clearance (m)' }, gridcolor: GRID_COLOR, range: [0, 3] },
+      barmode: 'group',
+      margin: { l: 40, r: 10, t: 30, b: 35 },
+      showlegend: false,
+      shapes: [
+        { type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 0.5, y1: 0.5, line: { color: '#f85149', width: 1, dash: 'dash' } }
+      ]
+    }, { responsive: true, displayModeBar: false });
+
+    const transitTracesDashboard = dashboardGains.map((ka, idx) => {
+      const frames = data.gain_sweep[ka].frames;
+      const xThresholds = [-12.0, -7.0, -2.0, 3.0, 8.0, 11.5];
+      const times = xThresholds.map(xt => {
+        const fIdx = frames.findIndex(f => f.pos[0] >= xt);
+        return fIdx !== -1 ? frames[fIdx].t : null;
+      });
+
+      const segmentTimes = [];
+      for (let s = 0; s < 5; s++) {
+        if (times[s] !== null && times[s+1] !== null) {
+          segmentTimes.push(times[s+1] - times[s]);
+        } else {
+          segmentTimes.push(null);
+        }
+      }
+
+      return {
+        x: ['S-G1', 'G1-G2', 'G2-G3', 'G3-G4', 'G4-Goal'],
+        y: segmentTimes,
+        type: 'bar',
+        name: `k_a = ${ka}`,
+        marker: { color: dashboardColors[idx] },
+        hovertemplate: `k_a=${ka}<br>%{x} Transit: %{y:.2f}s<extra></extra>`
+      };
+    });
+
+    Plotly.newPlot('gateTransitChart', transitTracesDashboard, {
+      title: { text: '4. Segment Transit Time', font: { size: 11, color: GREEN } },
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+      xaxis: { gridcolor: GRID_COLOR },
+      yaxis: { title: { text: 'Transit Time (s)' }, gridcolor: GRID_COLOR, range: [0, 15] },
+      barmode: 'group',
+      margin: { l: 40, r: 10, t: 30, b: 35 },
+      showlegend: false
+    }, { responsive: true, displayModeBar: false });
+
+    // ── Gain Bifurcation & Dynamical Regimes ──
+    const bifMaxX = [];
+    const bifYSpan = [];
+    const bifWorstClearance = [];
+    const bifColors = [];
+
+    for (const ka of GAIN_KEYS) {
+      const frames = data.gain_sweep[ka].frames;
+      const maxX = Math.max(...frames.map(f => f.pos[0]));
+      bifMaxX.push(maxX);
+      
+      const ys = frames.map(f => f.pos[1]);
+      const spanY = Math.max(...ys) - Math.min(...ys);
+      bifYSpan.push(spanY);
+
+      let worstD = Infinity;
+      for (const obs of obsList) {
+        const oc = obs.center, or = obs.radius;
+        for (const f of frames) {
+          const dx = f.pos[0] - oc[0];
+          const dy = f.pos[1] - oc[1];
+          const dist = Math.sqrt(dx*dx + dy*dy) - or;
+          if (dist < worstD) worstD = dist;
+        }
+      }
+      bifWorstClearance.push(worstD);
+
+      if (worstD < 0.3) {
+        bifColors.push('#f85149');
+      } else if (worstD < 0.5) {
+        bifColors.push('#d29922');
+      } else {
+        bifColors.push('#3fb950');
+      }
+    }
+
+    Plotly.newPlot('bifurcationChart', [{
+      x: GAIN_KEYS,
+      y: bifMaxX,
+      mode: 'markers+text',
+      type: 'scatter',
       marker: {
-        color: mcDiff.map(d => d.failure_rate > 0 ? '#f85149' : '#3fb950'),
-        line: { color: '#21262d', width: 0.5 },
+        size: bifYSpan.map(s => Math.max(12, s * 4.5)),
+        color: bifColors,
+        line: { color: '#c9d1d9', width: 1 }
       },
-      text: mcDiff.map(d => d.failure_rate > 0 ? `${(d.failure_rate * 100).toFixed(0)}%` : ''),
-      textposition: 'outside',
+      text: GAIN_KEYS.map(ka => `ka=${ka}`),
+      textposition: 'top center',
+      hovertemplate: 'k_avoid: %{x}<br>Max X Reached: %{y:.2f}m<br>Y-Span: %{text}<extra></extra>',
     }], {
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
       font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
-      xaxis: { title: { text: 'Layout Seed' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', dtick: 1 },
-      yaxis: { title: { text: 'Failure Rate (%)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
-      margin: { l: 50, r: 10, t: 5, b: 30 },
-      showlegend: false,
-      hovermode: 'closest',
+      xaxis: { title: { text: 'k_avoid (Repulsion Gain)' }, gridcolor: GRID_COLOR, type: 'category' },
+      yaxis: { title: { text: 'Max Forward Progress (m)' }, gridcolor: GRID_COLOR, range: [-13, 13] },
+      margin: { l: 50, r: 10, t: 25, b: 45 },
+      shapes: [
+        { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: -7, y1: -7, line: { color: GRID_COLOR, width: 0.8, dash: 'dash' } },
+        { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: -2, y1: -2, line: { color: GRID_COLOR, width: 0.8, dash: 'dash' } },
+        { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 3, y1: 3, line: { color: GRID_COLOR, width: 0.8, dash: 'dash' } },
+        { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 8, y1: 8, line: { color: GRID_COLOR, width: 0.8, dash: 'dash' } },
+        { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: 12, y1: 12, line: { color: '#3fb950', width: 1, dash: 'dot' } }
+      ],
+      annotations: [
+        { x: '0.1', y: -10, text: 'Regime I: Corner-Cutting', showarrow: false, font: { color: '#ff00ff', size: 9 }, xanchor: 'left' },
+        { x: '1', y: 0, text: 'Regime II: Stall', showarrow: false, font: { color: '#ff8800', size: 9 }, xanchor: 'left' },
+        { x: '3', y: 10, text: 'Regime III: Optimal Slalom', showarrow: false, font: { color: '#3fb950', size: 9 }, xanchor: 'left' },
+        { x: '6', y: -4, text: 'Regime IV: Pushback', showarrow: false, font: { color: '#bc8cff', size: 9 }, xanchor: 'left' },
+        { x: '10', y: 12.3, text: 'GOAL', showarrow: false, font: { color: '#3fb950', size: 8 } }
+      ]
     }, { responsive: true, displayModeBar: false });
 
-    // ── Sensitivity (single-layout binary) ──
+    // ── Parameter Space Design Envelope ──
     const sens = data.sensitivity;
     const zData = sens.grid;
     Plotly.newPlot('sensitivityChart', [{
       z: zData, x: sens.rho0_values, y: sens.k_avoid_values,
       type: 'heatmap',
-      colorscale: [[0, '#21262d'], [0.5, '#21262d'], [0.99, '#21262d'], [1, '#3fb950']],
+      colorscale: [[0, '#21262d'], [0.99, '#21262d'], [1, '#3fb950']],
       showscale: false,
-      hovertemplate: 'k_avoid=%{y:.2f}, rho0=%{x:.2f}<br>%{z}<extra></extra>',
+      hovertemplate: 'k_avoid=%{y:.2f}, rho0=%{x:.2f}<br>Success: %{z}<extra></extra>',
     }], {
+      title: { text: 'A. Deterministic Success Envelope', font: { size: 11, color: AMBER } },
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
       font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
       xaxis: { title: { text: 'rho0 (m)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
       yaxis: { title: { text: 'k_avoid' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
-      margin: { l: 55, r: 10, t: 25, b: 45 },
+      margin: { l: 55, r: 10, t: 30, b: 45 },
       annotations: (() => {
         const anns = [];
         const kl = sens.k_avoid_values.map(v => v.toFixed(2));
         const rl = sens.rho0_values.map(v => v.toFixed(2));
         for (let ki = 0; ki < kl.length; ki++)
           for (let ri = 0; ri < rl.length; ri++)
-            anns.push({ x: sens.rho0_values[ri], y: sens.k_avoid_values[ki], text: zData[ki][ri] === 1 ? '\u2713' : '\u2717', showarrow: false, font: { size: 10, color: zData[ki][ri] === 1 ? '#3fb950' : '#8b949e' } });
+            anns.push({ x: sens.rho0_values[ri], y: sens.k_avoid_values[ki], text: zData[ki][ri] === 1 ? '\u2713' : '\u2717', showarrow: false, font: { size: 10, color: zData[ki][ri] === 1 ? '#3fb950' : '#f85149' } });
         return anns;
       })(),
     }, { responsive: true, displayModeBar: false });
 
-    // ── MC Stress Sensitivity (failure probability) ──
+    // ── MC Stress Sensitivity (failure probability contour) ──
     const mcs = data.mc_sensitivity;
     const frg = mcs.failure_rate_grid;
     Plotly.newPlot('mcStressChart', [{
       z: frg, x: mcs.rho0_values, y: mcs.k_avoid_values,
-      type: 'heatmap',
+      type: 'contour',
+      contours: {
+        coloring: 'heatmap',
+        showlabels: true,
+        labelfont: { size: 8, color: '#ffffff' }
+      },
       zmin: 0, zmax: Math.max(...frg.flat(), 0.05),
       colorscale: [
         [0, '#0d1117'],
-        [0.25, '#21262d'],
-        [0.5, '#8b949e'],
-        [0.75, '#d29922'],
-        [1, '#f85149'],
+        [0.2, '#21262d'],
+        [0.5, '#d29922'],
+        [1.0, '#f85149'],
       ],
-      colorbar: { title: { text: 'Fail Prob' }, tickfont: { size: 8 } },
+      colorbar: { title: { text: 'Fail Rate' }, tickfont: { size: 8 } },
       hovertemplate: 'k_avoid=%{y:.2f}, rho0=%{x:.2f}<br>Fail Rate: %{z:.1%}<extra></extra>',
     }], {
+      title: { text: 'B. Monte Carlo Safety Envelope', font: { size: 11, color: AMBER } },
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
       font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
       xaxis: { title: { text: 'rho0 (m)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
       yaxis: { title: { text: 'k_avoid' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
-      margin: { l: 55, r: 40, t: 25, b: 45 },
+      margin: { l: 55, r: 40, t: 30, b: 45 },
     }, { responsive: true, displayModeBar: false });
   })
   .catch(() => {
