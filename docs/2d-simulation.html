@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="2D APF Corridor Path Planning - UAV Swarm">
+  <title>2D Path Planning - UAV Swarm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+
+<button class="sidebar-toggle" id="sidebarToggle">&#9776;</button>
+
+<div class="sidebar">
+  <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-heading">Project</div>
+      <a href="index.html" class="nav-item">Overview</a>
+      <a href="theory.html" class="nav-item">Theory &amp; Methods</a>
+      <a href="simulation.html" class="nav-item">3D Simulation</a>
+      <a href="2d-simulation.html" class="nav-item active">2D Path Planning</a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-heading">Reference</div>
+      <a href="implementation.html" class="nav-item">Implementation</a>
+    </div>
+  </nav>
+</div>
+
+<div class="main-content">
+
+  <h1>2D Corridor Path Planning</h1>
+  <p>APF-based path planning in a constrained corridor (Y&#8201;&#x2208;&#8201;[&#8722;5,&#8201;5], X&#8201;&#x2208;&#8201;[&#8722;15,&#8201;15]) with obstacle avoidance, gain sweep analysis, Monte Carlo validation, and sensitivity characterization.</p>
+
+  <div class="sim-viewport" style="height:400px;">
+    <video id="apfVideo" width="100%" height="100%" controls loop playsinline
+           style="display:block;object-fit:contain;background:#0a0e14">
+      <source src="assets/videos/apf_path_2d.mp4" type="video/mp4">
+    </video>
+  </div>
+
+  <hr class="divider">
+
+  <h2>What to Watch For</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h3>APF Potential Contour</h3>
+      <p>The amber-red background shows the repulsive potential field. The drone follows the negative gradient, balancing target attraction with obstacle repulsion and wall confinement.</p>
+    </div>
+    <div class="card">
+      <h3>Round-Trip Navigation</h3>
+      <p>The drone traverses from start (&#8722;12, 0) to goal (12, 0) and back. Speed varies as repulsion from nearby obstacles perturbs the nominal 3 m/s cruise.</p>
+    </div>
+    <div class="card">
+      <h3>Wall Confinement</h3>
+      <p>Amber dashed lines mark corridor boundaries at Y = &#177;5. The APF wall repulsion term keeps the drone within bounds at all times, even during tight obstacle negotiation.</p>
+    </div>
+    <div class="card">
+      <h3>Gain Sensitivity</h3>
+      <p>The k_avoid parameter controls repulsion strength. The gain sweep overlay and sensitivity heatmap below show how different gain values affect trajectory shape and success rate.</p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Gain Sweep Overlay</h2>
+  <p>Trajectories for ten values of k_avoid (0.05, 0.1, 0.2, 0.5, 1, 2, 3, 4, 6, 10). Very low gains barely react to obstacles; high gains take wide, safe arcs. The fixed layout has 15 obstacles in a heavy-density configuration.</p>
+
+  <div class="chart-container" style="height:420px;">
+    <div id="gainOverlayChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Faceted Trajectory Comparison</h2>
+  <p>Each panel shows a single gain value with the same obstacle field. Gains span from barely functional (k_avoid=0.05) through optimal (4) to over-reactive (10).</p>
+
+  <div class="chart-container" style="height:500px;">
+    <div id="facetGridChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Clearance per Gain</h2>
+  <p>Minimum Euclidean clearance from the drone to each obstacle over the full trajectory, per gain value. Lower gains (0.05&#8211;0.5) can pass perilously close; k_avoid=4 provides a good balance of safety and path efficiency. The red dashed line marks the 0.5m caution threshold.</p>
+
+  <div class="chart-container" style="height:300px;">
+    <div id="clearanceChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Speed Profile Overlay</h2>
+  <p>Instantaneous speed over time for each gain value. Low-gain trajectories barely slow down near obstacles (minimal detour), while high-gain trajectories brake through tight corridors.</p>
+
+  <div class="chart-container" style="height:350px;">
+    <div id="speedOverlayChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>APF Force Breakdown</h2>
+  <p>Stacked area chart showing attractive, repulsive (obstacle), and wall forces acting on the drone during the optimal trajectory (k_avoid=4, rho0=3.5). Attraction dominates in open space, repulsion spikes near obstacles, and wall forces confine the drone to the corridor.</p>
+
+  <div class="chart-container" style="height:300px;">
+    <div id="forceBreakdownChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Monte Carlo Validation</h2>
+  <p>Twenty random obstacle layouts (15 obstacles each, heavy-density with narrow gaps) were generated with stochastic radii (0.3&#8211;2.2m). The APF guidance at k_avoid=4, rho0=3.5 achieved a perfect 20/20 success rate.</p>
+
+  <div class="stats">
+    <div class="stat"><span class="num">20/20</span><span class="lbl">Success Rate</span></div>
+    <div class="stat"><span class="num">0</span><span class="lbl">Collisions</span></div>
+    <div class="stat"><span class="num">15</span><span class="lbl">Obstacles per Layout</span></div>
+  </div>
+
+  <div class="chart-container" style="height:250px;">
+    <div id="mcDifficultyChart" style="width:100%;height:100%"></div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Sensitivity Analysis</h2>
+  <p>Two complementary views. <strong>Left:</strong> Single-layout binary sweep (9&#8201;&#x00D7;&#8201;9) showing success/failure across the k_avoid &#215; rho0 parameter plane. <strong>Right:</strong> MC stress sensitivity aggregating failure probability across all 20 heavy-density layouts. This reveals the robust operating region and where failures begin to appear.</p>
+
+  <div class="chart-row two-col">
+    <div class="chart-container" style="height:380px;">
+      <div id="sensitivityChart" style="width:100%;height:100%"></div>
+    </div>
+    <div class="chart-container" style="height:380px;">
+      <div id="mcStressChart" style="width:100%;height:100%"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="site-footer">
+  <p>UAV Swarm Coordination - 2D Path Planning</p>
+</footer>
+
+<script>
+const GREEN = '#3fb950';
+const AMBER = '#d29922';
+const BG = '#0a0e14';
+const GRID_COLOR = '#21262d';
+const TEXT_COLOR = '#8b949e';
+
+const GAIN_KEYS = ['0.05', '0.1', '0.2', '0.5', '1', '2', '3', '4', '6', '10'];
+const GAIN_COLORS = ['#ff00ff', '#00ffff', '#ff8800', '#88ff00', '#0088ff', '#ff0088', '#ffee00', '#3fb950', '#58a6ff', '#bc8cff'];
+
+const FACET_GAINS = ['0.05', '0.2', '0.5', '2', '4', '10'];
+const FACET_COLORS = ['#ff00ff', '#ff8800', '#88ff00', '#0088ff', '#3fb950', '#bc8cff'];
+
+fetch('assets/data/simulation_2d.json')
+  .then(r => r.json())
+  .then(data => {
+    const opt = data.optimal_run;
+    const meta = data.meta;
+
+    // ── Gain Sweep Overlay (all 10) ──
+    const gainTraces = GAIN_KEYS.map((ka, i) => ({
+      x: data.gain_sweep[ka].frames.map(f => f.pos[0]),
+      y: data.gain_sweep[ka].frames.map(f => f.pos[1]),
+      type: 'scatter', mode: 'lines',
+      line: { color: GAIN_COLORS[i], width: 1.2 },
+      name: `k_a = ${ka}`,
+    }));
+    for (const obs of meta.obstacles) {
+      const cx = obs.center[0], cy = obs.center[1], r = obs.radius;
+      const theta = Array.from({ length: 50 }, (_, i) => (i / 49) * 2 * Math.PI);
+      gainTraces.push({
+        x: theta.map(t => cx + r * Math.cos(t)),
+        y: theta.map(t => cy + r * Math.sin(t)),
+        type: 'scatter', mode: 'lines', fill: 'toself',
+        line: { color: '#ffffff', width: 0.6 },
+        fillcolor: 'rgba(255,255,255,0.1)',
+        showlegend: false, hoverinfo: 'skip',
+      });
+    }
+    const wallX = [-15, 15, 15, -15, -15];
+    gainTraces.push({
+      x: wallX, y: [-5, -5, 5, 5, -5],
+      type: 'scatter', mode: 'lines',
+      line: { color: AMBER, width: 1, dash: 'dash' },
+      showlegend: false, hoverinfo: 'skip',
+    });
+    gainTraces.push({
+      x: [-12], y: [0], type: 'scatter', mode: 'markers',
+      marker: { size: 10, color: GREEN, symbol: 'circle' }, name: 'Start',
+    });
+    gainTraces.push({
+      x: [12], y: [0], type: 'scatter', mode: 'markers',
+      marker: { size: 12, color: AMBER, symbol: 'star' }, name: 'Goal',
+    });
+
+    const gainLayout = {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
+      xaxis: { title: { text: 'X (m)' }, range: [-15, 15], gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'Y (m)' }, range: [-5, 5], gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      margin: { l: 45, r: 10, t: 5, b: 30 },
+      showlegend: true,
+      legend: { font: { size: 8, color: TEXT_COLOR }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
+      hovermode: 'closest',
+    };
+    Plotly.newPlot('gainOverlayChart', gainTraces, gainLayout, { responsive: true, displayModeBar: true });
+
+    // ── Faceted 2x3 Grid ──
+    const facetTraces = [];
+    function obsCircles(obsList, xAxis, yAxis) {
+      const traces = [];
+      for (const obs of obsList) {
+        const cx = obs.center[0], cy = obs.center[1], r = obs.radius;
+        const theta = Array.from({ length: 50 }, (_, i) => (i / 49) * 2 * Math.PI);
+        traces.push({
+          x: theta.map(t => cx + r * Math.cos(t)),
+          y: theta.map(t => cy + r * Math.sin(t)),
+          type: 'scatter', mode: 'lines', fill: 'toself',
+          line: { color: '#ffffff', width: 0.6 },
+          fillcolor: 'rgba(255,255,255,0.08)',
+          showlegend: false, hoverinfo: 'skip',
+          xaxis: xAxis, yaxis: yAxis,
+        });
+      }
+      return traces;
+    }
+    function wallRect(xAxis, yAxis) {
+      return [{
+        x: [-15, 15, 15, -15, -15],
+        y: [-5, -5, 5, 5, -5],
+        type: 'scatter', mode: 'lines',
+        line: { color: AMBER, width: 0.8, dash: 'dash' },
+        showlegend: false, hoverinfo: 'skip',
+        xaxis: xAxis, yaxis: yAxis,
+      }];
+    }
+    function startGoal(xAxis, yAxis) {
+      return [
+        { x: [-12], y: [0], type: 'scatter', mode: 'markers',
+          marker: { size: 8, color: GREEN, symbol: 'circle' },
+          showlegend: false, hoverinfo: 'skip', xaxis: xAxis, yaxis: yAxis },
+        { x: [12], y: [0], type: 'scatter', mode: 'markers',
+          marker: { size: 10, color: AMBER, symbol: 'star' },
+          showlegend: false, hoverinfo: 'skip', xaxis: xAxis, yaxis: yAxis },
+      ];
+    }
+
+    FACET_GAINS.forEach((ka, i) => {
+      const xKey = i === 0 ? 'x' : 'x' + (i + 1);
+      const yKey = i === 0 ? 'y' : 'y' + (i + 1);
+      const gd = data.gain_sweep[ka];
+      facetTraces.push({
+        x: gd.frames.map(f => f.pos[0]),
+        y: gd.frames.map(f => f.pos[1]),
+        type: 'scatter', mode: 'lines',
+        line: { color: FACET_COLORS[i], width: 1.5 },
+        name: `k_a = ${ka}`,
+        xaxis: xKey, yaxis: yKey,
+      });
+      facetTraces.push(...obsCircles(meta.obstacles, xKey, yKey));
+      facetTraces.push(...wallRect(xKey, yKey));
+      facetTraces.push(...startGoal(xKey, yKey));
+    });
+
+    const facetLayout = {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+      grid: { rows: 2, columns: 3, pattern: 'independent' },
+      margin: { l: 30, r: 10, t: 25, b: 25 },
+      hovermode: 'closest', showlegend: false,
+    };
+    for (let i = 0; i < 6; i++) {
+      const xKey = i === 0 ? 'xaxis' : 'xaxis' + (i + 1);
+      const yKey = i === 0 ? 'yaxis' : 'yaxis' + (i + 1);
+      facetLayout[xKey] = {
+        title: { text: '' },
+        range: [-15, 15], gridcolor: GRID_COLOR, zerolinecolor: '#30363d',
+        showticklabels: i >= 3, dtick: 5,
+      };
+      facetLayout[yKey] = {
+        title: { text: `k_a = ${FACET_GAINS[i]}` },
+        range: [-5, 5], gridcolor: GRID_COLOR, zerolinecolor: '#30363d',
+        showticklabels: i % 3 === 0,
+      };
+    }
+    Plotly.newPlot('facetGridChart', facetTraces, facetLayout, { responsive: true, displayModeBar: false });
+
+    // ── Clearance per Gain ──
+    const obsList = meta.obstacles;
+    const obsColors = ['#ff00ff', '#00ffff', '#ff8800', '#88ff00', '#0088ff', '#ff0088', '#ffee00', '#3fb950', '#58a6ff', '#bc8cff'];
+    const clearTraces = [];
+    for (let oi = 0; oi < obsList.length; oi++) {
+      const oc = obsList[oi].center;
+      const or = obsList[oi].radius;
+      const xVals = [], yVals = [];
+      for (const g of GAIN_KEYS) {
+        let minD = Infinity;
+        for (const f of data.gain_sweep[g].frames) {
+          const dx = f.pos[0] - oc[0], dy = f.pos[1] - oc[1];
+          const d = Math.sqrt(dx * dx + dy * dy) - or;
+          if (d < minD) minD = d;
+        }
+        xVals.push(g);
+        yVals.push(minD);
+      }
+      clearTraces.push({
+        x: xVals, y: yVals,
+        type: 'scatter', mode: 'lines+markers',
+        marker: { size: 6, color: obsColors[oi % obsColors.length] },
+        line: { color: obsColors[oi % obsColors.length], width: 1, dash: 'dot' },
+        name: `O${oi + 1}`,
+      });
+    }
+    clearTraces.push({
+      x: GAIN_KEYS, y: GAIN_KEYS.map(() => 0.5),
+      type: 'scatter', mode: 'lines',
+      line: { color: '#f85149', width: 1, dash: 'dash' },
+      name: 'Caution (0.5m)',
+    });
+    Plotly.newPlot('clearanceChart', clearTraces, {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
+      xaxis: { title: { text: 'k_avoid' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'Min Clearance (m)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      margin: { l: 50, r: 10, t: 5, b: 35 },
+      showlegend: true,
+      legend: { font: { size: 8, color: TEXT_COLOR }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
+      hovermode: 'closest',
+    }, { responsive: true, displayModeBar: false });
+
+    // ── Speed Overlay ──
+    const speedTraces = GAIN_KEYS.map((ka, i) => ({
+      x: data.gain_sweep[ka].frames.map(f => f.t),
+      y: data.gain_sweep[ka].frames.map(f => f.speed),
+      type: 'scatter', mode: 'lines',
+      line: { color: GAIN_COLORS[i], width: 1 },
+      name: `k_a = ${ka}`,
+    }));
+    speedTraces.push({
+      x: [0, 30], y: [3, 3],
+      type: 'scatter', mode: 'lines',
+      line: { color: AMBER, width: 1, dash: 'dash' },
+      name: 'Cruise (3 m/s)', showlegend: false,
+    });
+    Plotly.newPlot('speedOverlayChart', speedTraces, {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
+      xaxis: { title: { text: 'Time (s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'Speed (m/s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      margin: { l: 45, r: 10, t: 5, b: 30 },
+      showlegend: true,
+      legend: { font: { size: 8, color: TEXT_COLOR }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
+      hovermode: 'x unified',
+    }, { responsive: true, displayModeBar: false });
+
+    // ── APF Force Breakdown (stacked area) ──
+    const tArr = opt.frames.map(f => f.t);
+    const fAtt = opt.frames.map(f => f.F_att);
+    const fRep = opt.frames.map(f => f.F_rep);
+    const fWall = opt.frames.map(f => f.F_wall);
+    Plotly.newPlot('forceBreakdownChart', [
+      { x: tArr, y: fAtt, type: 'scatter', mode: 'lines', stackgroup: 'forces', fillcolor: '#3fb950', line: { color: '#3fb950', width: 1 }, name: 'Attractive' },
+      { x: tArr, y: fRep, type: 'scatter', mode: 'lines', stackgroup: 'forces', fillcolor: '#f8514950', line: { color: '#f85149', width: 1 }, name: 'Repulsive' },
+      { x: tArr, y: fWall, type: 'scatter', mode: 'lines', stackgroup: 'forces', fillcolor: '#d2992250', line: { color: '#d29922', width: 1 }, name: 'Wall' },
+    ], {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
+      xaxis: { title: { text: 'Time (s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'Force Magnitude (m/s\u00B2)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      margin: { l: 55, r: 10, t: 5, b: 30 },
+      showlegend: true,
+      legend: { font: { size: 9, color: TEXT_COLOR }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
+      hovermode: 'x unified',
+    }, { responsive: true, displayModeBar: false });
+
+    // ── MC Layout Difficulty ──
+    const mcDiff = data.mc_sensitivity.layout_difficulty;
+    Plotly.newPlot('mcDifficultyChart', [{
+      x: mcDiff.map(d => d.seed),
+      y: mcDiff.map(d => d.failure_rate * 100),
+      type: 'bar',
+      marker: {
+        color: mcDiff.map(d => d.failure_rate > 0 ? '#f85149' : '#3fb950'),
+        line: { color: '#21262d', width: 0.5 },
+      },
+      text: mcDiff.map(d => d.failure_rate > 0 ? `${(d.failure_rate * 100).toFixed(0)}%` : ''),
+      textposition: 'outside',
+    }], {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 10, color: TEXT_COLOR },
+      xaxis: { title: { text: 'Layout Seed' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', dtick: 1 },
+      yaxis: { title: { text: 'Failure Rate (%)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      margin: { l: 50, r: 10, t: 5, b: 30 },
+      showlegend: false,
+      hovermode: 'closest',
+    }, { responsive: true, displayModeBar: false });
+
+    // ── Sensitivity (single-layout binary) ──
+    const sens = data.sensitivity;
+    const zData = sens.grid;
+    Plotly.newPlot('sensitivityChart', [{
+      z: zData, x: sens.rho0_values, y: sens.k_avoid_values,
+      type: 'heatmap',
+      colorscale: [[0, '#21262d'], [0.5, '#21262d'], [0.99, '#21262d'], [1, '#3fb950']],
+      showscale: false,
+      hovertemplate: 'k_avoid=%{y:.2f}, rho0=%{x:.2f}<br>%{z}<extra></extra>',
+    }], {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+      xaxis: { title: { text: 'rho0 (m)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'k_avoid' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      margin: { l: 55, r: 10, t: 25, b: 45 },
+      annotations: (() => {
+        const anns = [];
+        const kl = sens.k_avoid_values.map(v => v.toFixed(2));
+        const rl = sens.rho0_values.map(v => v.toFixed(2));
+        for (let ki = 0; ki < kl.length; ki++)
+          for (let ri = 0; ri < rl.length; ri++)
+            anns.push({ x: sens.rho0_values[ri], y: sens.k_avoid_values[ki], text: zData[ki][ri] === 1 ? '\u2713' : '\u2717', showarrow: false, font: { size: 10, color: zData[ki][ri] === 1 ? '#3fb950' : '#8b949e' } });
+        return anns;
+      })(),
+    }, { responsive: true, displayModeBar: false });
+
+    // ── MC Stress Sensitivity (failure probability) ──
+    const mcs = data.mc_sensitivity;
+    const frg = mcs.failure_rate_grid;
+    Plotly.newPlot('mcStressChart', [{
+      z: frg, x: mcs.rho0_values, y: mcs.k_avoid_values,
+      type: 'heatmap',
+      zmin: 0, zmax: Math.max(...frg.flat(), 0.05),
+      colorscale: [
+        [0, '#0d1117'],
+        [0.25, '#21262d'],
+        [0.5, '#8b949e'],
+        [0.75, '#d29922'],
+        [1, '#f85149'],
+      ],
+      colorbar: { title: { text: 'Fail Prob' }, tickfont: { size: 8 } },
+      hovertemplate: 'k_avoid=%{y:.2f}, rho0=%{x:.2f}<br>Fail Rate: %{z:.1%}<extra></extra>',
+    }], {
+      paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+      xaxis: { title: { text: 'rho0 (m)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      yaxis: { title: { text: 'k_avoid' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
+      margin: { l: 55, r: 40, t: 25, b: 45 },
+    }, { responsive: true, displayModeBar: false });
+  })
+  .catch(() => {
+    const msg = 'Could not load 2D simulation data. Run run_simulation_2d.py first.';
+    document.querySelectorAll('.chart-container').forEach(el => {
+      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red);font-size:0.8em;">' + msg + '</div>';
+    });
+  });
+
+document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+  document.querySelector('.sidebar').classList.toggle('open');
+});
+</script>
+
+</body>
+</html>

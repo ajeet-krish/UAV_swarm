@@ -3,13 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Interactive 3D UAV Swarm Simulation with real-time telemetry">
+  <meta name="description" content="Interactive 3D UAV Swarm Simulation with Three.js viewer">
   <title>3D Simulation - UAV Swarm</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 <body>
 
@@ -21,12 +29,12 @@
     <div class="nav-section">
       <div class="nav-heading">Project</div>
       <a href="index.html" class="nav-item">Overview</a>
-      <a href="theory.html" class="nav-item">Theory &amp; Math</a>
+      <a href="theory.html" class="nav-item">Theory &amp; Methods</a>
       <a href="simulation.html" class="nav-item active">3D Simulation</a>
+      <a href="2d-simulation.html" class="nav-item">2D Path Planning</a>
     </div>
     <div class="nav-section">
       <div class="nav-heading">Reference</div>
-      <a href="methodology.html" class="nav-item">Methodology</a>
       <a href="implementation.html" class="nav-item">Implementation</a>
     </div>
   </nav>
@@ -34,37 +42,32 @@
 
 <div class="main-content">
 
-  <h1>Swarm Simulation &amp; Telemetry</h1>
-  <p>Matplotlib 3D animation of decentralized formation flight. Seven drones navigate an orbital debris field with wind gusts in a 3D DCM heading-aligned wedge.</p>
+  <h1>3D Swarm Simulation</h1>
+  <p>Interactive Three.js viewer of decentralized formation flight. Seven drones navigate an orbital debris field with wind gusts in a 3D DCM heading-aligned wedge. Drag to orbit, scroll to zoom, press play to animate.</p>
 
-  <div class="sim-layout">
-    <div>
-      <div class="sim-viewport">
-        <video id="swarmVideo" width="100%" height="100%" controls loop playsinline
-               poster="assets/images/top_down.gif"
-               style="display:block;object-fit:contain;background:#0a0e14">
-          <source src="assets/videos/swarm_3d.mp4" type="video/mp4">
-        </video>
-      </div>
+  <div class="sim-viewport" id="threeContainer" style="height:550px;"></div>
+
+  <hr class="divider">
+
+  <h2>Flight Metrics</h2>
+  <p>Telemetry extracted from the simulation data: formation convergence, graph connectivity, control effort, and obstacle proximity events.</p>
+
+  <div class="metrics-grid">
+    <div class="chart-container">
+      <div class="chart-title">Formation Error over Time</div>
+      <div id="metricFormError" style="width:100%;height:85%"></div>
     </div>
-
-    <div class="sim-panel">
-      <div class="chart-container" style="height:135px;">
-        <div class="chart-title"># FORMATION ERROR</div>
-        <div id="formationErrorChart" style="width:100%;height:calc(100% - 18px)"></div>
-      </div>
-      <div class="chart-container" style="height:135px;">
-        <div class="chart-title"># CONTROL EFFORT (T_MAX = 15N)</div>
-        <div id="controlEffortChart" style="width:100%;height:calc(100% - 18px)"></div>
-      </div>
-      <div class="chart-container" style="height:135px;">
-        <div class="chart-title"># ALGEBRAIC CONNECTIVITY lambda_2</div>
-        <div id="lambdaChart" style="width:100%;height:calc(100% - 18px)"></div>
-      </div>
-      <div class="chart-container" style="height:135px;">
-        <div class="chart-title"># WIND GUST MAGNITUDE</div>
-        <div id="windChart" style="width:100%;height:calc(100% - 18px)"></div>
-      </div>
+    <div class="chart-container">
+      <div class="chart-title">Algebraic Connectivity &lambda;<sub>2</sub></div>
+      <div id="metricLambda2" style="width:100%;height:85%"></div>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Max Control Effort</div>
+      <div id="metricControlEffort" style="width:100%;height:85%"></div>
+    </div>
+    <div class="chart-container">
+      <div class="chart-title">Obstacle Proximity Events</div>
+      <div id="metricProximity" style="width:100%;height:85%"></div>
     </div>
   </div>
 
@@ -73,384 +76,152 @@
   <h2>What to Watch For</h2>
   <div class="card-grid">
     <div class="card">
-      <h3>Formation Convergence</h3>
-      <p>Seven drones fly in a 3D DCM heading-aligned wedge. The formation error decays from an initial transient as the LQR controller converges. The wedge rotates in 3D to follow the leader's direction of travel.</p>
+      <h3>Tron-Style Formation Flight</h3>
+      <p>Seven neon drones (rainbow-coded by index) fly in a 3D DCM heading-aligned wedge. Each drone is an emissive cube with a heading cone, rendered with bloom post-processing for a glowing light-cycle aesthetic. The wedge rotates in 3D to follow the leader.</p>
     </div>
     <div class="card">
       <h3>Obstacle Negotiation</h3>
-      <p>The debris field contains six spherical asteroids (purple wireframes). APF repulsion forces with analytical signed-distance gradients push drones away from each sphere.</p>
+      <p>The debris field contains 15 spherical asteroids (white wireframes). APF repulsion forces with analytical signed-distance gradients push drones away from each sphere.</p>
     </div>
     <div class="card">
       <h3>Wind Gust Rejection</h3>
       <p>Dryden-model turbulence (sigma=2 m/s, tau=5s) perturbs each drone independently. The consensus force from neighboring agents pulls displaced drones back into formation.</p>
     </div>
     <div class="card">
-      <h3>Ghost Targets</h3>
-      <p>Small wireframe spheres show the desired formation offset positions relative to the leader. The gap between a drone and its ghost visualizes the instantaneous formation error.</p>
+      <h3>Interactive Controls + Auto-Orbit</h3>
+      <p>Drag to orbit, scroll to zoom. Use the play/pause button and timeline slider to step through 90s of simulation data. Gradient-fading trails show the last 60 positions. Camera auto-orbits when paused for a cinematic overview.</p>
     </div>
   </div>
-
-  <hr class="divider">
-
-  <h2>Metric Plots</h2>
-  <p>The four charts below show the full simulation history. The formation error rises momentarily during tight obstacle dodging and decays as consensus recovers.</p>
-
-  <div class="chart-grid">
-    <div class="chart-container" style="height:250px;">
-      <div class="chart-title"># FORMATION ERROR vs TIME</div>
-      <div id="formationErrorChart2" style="width:100%;height:calc(100% - 18px)"></div>
-    </div>
-    <div class="chart-container" style="height:250px;">
-      <div class="chart-title"># CONTROL EFFORT vs TIME</div>
-      <div id="controlEffortChart2" style="width:100%;height:calc(100% - 18px)"></div>
-    </div>
-    <div class="chart-container" style="height:250px;">
-      <div class="chart-title"># ALGEBRAIC CONNECTIVITY lambda_2</div>
-      <div id="lambdaChart2" style="width:100%;height:calc(100% - 18px)"></div>
-    </div>
-    <div class="chart-container" style="height:250px;">
-      <div class="chart-title"># WIND GUST MAGNITUDE</div>
-      <div id="windChart2" style="width:100%;height:calc(100% - 18px)"></div>
-    </div>
-  </div>
-
-  <hr class="divider">
-
-  <h2>Interactive 3D Viewer</h2>
-  <p>Drag to rotate, scroll to zoom. Use the play button or slider to step through the simulation. White semi-transparent spheres are the asteroid obstacles; the amber dot is the leader, green dots are followers. Fading trails show recent positions.</p>
-
-  <div id="interactive3d" style="width:100%;height:600px;background:#0a0e14;border:1px solid var(--border);border-radius:6px;"></div>
 
 </div>
 
 <footer class="site-footer">
-  <p>UAV Swarm Coordination - Interactive Simulation</p>
+  <p>UAV Swarm Coordination - Interactive 3D Simulation</p>
 </footer>
 
-<script>
-const CHART_COLORS = {
-  formation: '#3fb950',
-  control: '#d29922',
-  lambda: '#1f6feb',
-  wind: '#8b949e',
-  saturation: '#f85149',
-};
+<script type="module">
+import { initViewer } from './assets/js/three_viewer.js';
+initViewer('threeContainer');
+</script>
 
-function makeLayout(title, ylabel, color) {
+<script>
+// Plotly metrics panels
+const METRICS_DATA_URL = 'assets/data/swarm_simulation.json';
+const GREEN = '#3fb950';
+const AMBER = '#d29922';
+const RED = '#f85149';
+const BLUE = '#58a6ff';
+const TEXT_COLOR = '#8b949e';
+const GRID_COLOR = '#21262d';
+
+function makeMetricLayout(title, yLabel) {
   return {
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    font: { family: 'JetBrains Mono, monospace', size: 10, color: '#8b949e' },
-    xaxis: { title: { text: 'Time (s)' }, gridcolor: '#21262d', zerolinecolor: '#30363d' },
-    yaxis: { title: { text: ylabel }, gridcolor: '#21262d', zerolinecolor: '#30363d' },
-    margin: { l: 45, r: 10, t: 5, b: 30 },
+    font: { family: 'JetBrains Mono, monospace', size: 9, color: TEXT_COLOR },
+    margin: { l: 40, r: 8, t: 5, b: 25 },
     showlegend: false,
     hovermode: 'x unified',
+    xaxis: { title: { text: '' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', showticklabels: false },
+    yaxis: { title: { text: yLabel }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d' },
   };
 }
 
-fetch('assets/data/swarm_simulation.json')
+fetch(METRICS_DATA_URL)
   .then(r => r.json())
   .then(data => {
-    const frames = data.frames;
-    const meta = data.meta;
+    const SKIP = 10;
+    const frames = data.frames.filter((_, i) => i % SKIP === 0);
     const times = frames.map(f => f.t);
-    const errors = frames.map(f => f.metrics.formation_error);
-    const efforts = frames.map(f => f.metrics.max_control_effort);
-    const lambdas = frames.map(f => f.metrics.lambda_2);
-    const winds = frames.map(f => Math.sqrt(f.wind[0]**2 + f.wind[1]**2 + f.wind[2]**2));
+    const meta = data.meta;
+    const waypoints = meta.waypoints || [];
 
-    // Formation error
-    const errData = [
-      { x: times, y: errors, type: 'scatter', mode: 'lines',
-        line: { color: CHART_COLORS.formation, width: 1.5 }, name: 'E_formation' },
-    ];
-    const errLayout = makeLayout('Formation Error (m)', 'Error (m)', CHART_COLORS.formation);
+    // Formation Error
+    const formErr = frames.map(f => f.metrics.formation_error);
+    Plotly.newPlot('metricFormError', [{
+      x: times, y: formErr, type: 'scatter', mode: 'lines',
+      line: { color: GREEN, width: 1.2 },
+    }], makeMetricLayout('Formation Error', 'Error (m)'), { responsive: true });
 
-    // Control effort
-    const ctrlData = [
-      { x: times, y: efforts, type: 'scatter', mode: 'lines',
-        line: { color: CHART_COLORS.control, width: 1.5 }, name: 'u_max' },
-      { x: [0, times[times.length - 1]], y: [15, 15], type: 'scatter', mode: 'lines',
-        line: { color: CHART_COLORS.saturation, width: 1, dash: 'dash' }, name: 'T_max = 15N' },
-    ];
-    const ctrlLayout = makeLayout('Control Effort (N)', 'Control (N)', CHART_COLORS.control);
-    ctrlLayout.yaxis.range = [0, 22];
+    // Lambda 2
+    const lambda2 = frames.map(f => f.metrics.lambda_2);
+    Plotly.newPlot('metricLambda2', [{
+      x: times, y: lambda2, type: 'scatter', mode: 'lines',
+      line: { color: BLUE, width: 1.2 },
+    }], makeMetricLayout('Lambda 2', '\u03BB\u2082'), { responsive: true });
 
-    // Lambda_2
-    const lambdaData = [
-      { x: times, y: lambdas, type: 'scatter', mode: 'lines',
-        line: { color: CHART_COLORS.lambda, width: 1.5 }, name: 'lambda_2' },
-    ];
-    const lambdaLayout = makeLayout('lambda_2', 'lambda_2', CHART_COLORS.lambda);
+    // Max Control Effort
+    const ctrlEff = frames.map(f => f.metrics.max_control_effort);
+    Plotly.newPlot('metricControlEffort', [{
+      x: times, y: ctrlEff, type: 'scatter', mode: 'lines',
+      line: { color: RED, width: 1.2 },
+    }], makeMetricLayout('Max Control Effort', 'Force (N)'), { responsive: true });
 
-    // Wind
-    const windData = [
-      { x: times, y: winds, type: 'scatter', mode: 'lines',
-        line: { color: CHART_COLORS.wind, width: 1 }, name: '|wind|' },
-    ];
-    const windLayout = makeLayout('Wind (m/s)', 'Wind (m/s)', CHART_COLORS.wind);
+    // Obstacle Proximity Events
+    const obs = meta.obstacles || [];
+    const proxFrames = [];
+    const proxLabels = [];
+    const proxColors = ['#ff00ff', '#00ffff', '#ff8800', '#88ff00', '#0088ff', '#ff0088', '#ffee00'];
+    const THRESHOLD = 3.5;
+    const MIN_DIST = 0.5;
 
-    // Render all 8 charts (4 in sidebar, 4 below)
-    Plotly.newPlot('formationErrorChart', errData, errLayout, { responsive: true, displayModeBar: false });
-    Plotly.newPlot('controlEffortChart', ctrlData, ctrlLayout, { responsive: true, displayModeBar: false });
-    Plotly.newPlot('lambdaChart', lambdaData, lambdaLayout, { responsive: true, displayModeBar: false });
-    Plotly.newPlot('windChart', windData, windLayout, { responsive: true, displayModeBar: false });
-
-    Plotly.newPlot('formationErrorChart2', errData, errLayout, { responsive: true, displayModeBar: false });
-    Plotly.newPlot('controlEffortChart2', ctrlData, ctrlLayout, { responsive: true, displayModeBar: false });
-    Plotly.newPlot('lambdaChart2', lambdaData, lambdaLayout, { responsive: true, displayModeBar: false });
-    Plotly.newPlot('windChart2', windData, windLayout, { responsive: true, displayModeBar: false });
-
-    // ---- Interactive 3D Viewer ----
-
-    const DRONE_COLORS_3D = ['#d29922', '#3fb950', '#3fb950', '#3fb950', '#3fb950', '#3fb950', '#3fb950'];
-    const TRAIL_LEN = 30;
-    const SKIP = 3;
-    const selFrames = frames.filter((_, i) => i % SKIP === 0);
-    const numDrones = meta.num_agents;
-    const obstacles = meta.obstacles;
-
-    // Helper: generate sphere mesh vertices
-    function makeSphereMesh(center, radius, nLat=16, nLon=20) {
-      const [cx, cy, cz] = center;
-      const vertices = [];
-      for (let i = 0; i <= nLat; i++) {
-        const theta = (i / nLat) * Math.PI;
-        for (let j = 0; j <= nLon; j++) {
-          const phi = (j / nLon) * 2 * Math.PI;
-          vertices.push([
-            cx + radius * Math.sin(theta) * Math.cos(phi),
-            cy + radius * Math.cos(theta),
-            cz + radius * Math.sin(theta) * Math.sin(phi),
-          ]);
+    for (const frame of frames) {
+      const t = frame.t;
+      for (const drone of frame.drones) {
+        for (let oi = 0; oi < obs.length; oi++) {
+          const oc = obs[oi].center;
+          const or = obs[oi].radius;
+          const dx = drone.pos[0] - oc[0];
+          const dy = drone.pos[1] - oc[1];
+          const dz = drone.pos[2] - oc[2];
+          const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) - or;
+          if (dist < THRESHOLD && dist > MIN_DIST) {
+            proxFrames.push(t);
+            proxLabels.push(`D${drone.id} \u2192 A${oi+1}`);
+          }
         }
       }
-      const ii = [], jj = [], kk = [];
-      for (let i = 0; i < nLat; i++) {
-        for (let j = 0; j < nLon; j++) {
-          const a = i * (nLon + 1) + j;
-          const b = a + nLon + 1;
-          ii.push(a, a + 1);
-          jj.push(b, b);
-          kk.push(a + 1, b + 1);
-        }
-      }
-      return { x: vertices.map(v => v[0]), y: vertices.map(v => v[1]), z: vertices.map(v => v[2]), i: ii, j: jj, k: kk };
     }
 
-    // Precompute trails per frame per drone
-    function computeTrails(frames, numDrones, trailLen) {
-      const trails = [];
-      const accum = Array.from({ length: numDrones }, () => []);
-      for (let fi = 0; fi < frames.length; fi++) {
-        const drones = frames[fi].drones;
-        const frameTrails = [];
-        for (let di = 0; di < numDrones; di++) {
-          const pos = drones[di].pos;
-          accum[di].push(pos);
-          if (accum[di].length > trailLen) accum[di].shift();
-          frameTrails.push(accum[di].map(p => ({ x: p[0], y: p[1], z: p[2] })));
-        }
-        trails.push(frameTrails);
-      }
-      return trails;
-    }
+    // Sample proximity events: show up to first 200 for plot readability
+    const maxProx = 200;
+    const sampled = proxFrames.length > maxProx
+      ? proxLabels.map((l, i) => ({ l, t: proxFrames[i], keep: i % Math.ceil(proxFrames.length / maxProx) === 0 }))
+      : proxLabels.map((l, i) => ({ l, t: proxFrames[i], keep: true }));
+    const kept = sampled.filter(s => s.keep);
 
-    const trails = computeTrails(selFrames, numDrones, TRAIL_LEN);
+    const uniqueLabels = [...new Set(kept.map(s => s.l))];
+    const yMap = {};
+    uniqueLabels.forEach((l, i) => { yMap[l] = i; });
 
-    // Build base traces
-    const baseTraces = [];
+    const proxData = uniqueLabels.map(label => ({
+      x: kept.filter(s => s.l === label).map(s => s.t),
+      y: kept.filter(s => s.l === label).map(() => yMap[label]),
+      type: 'scatter', mode: 'markers',
+      marker: { size: 5, symbol: 'line-ns', color: uniqueLabels.indexOf(label) < proxColors.length ? proxColors[uniqueLabels.indexOf(label)] : TEXT_COLOR, line: { width: 0 } },
+      name: label,
+    }));
 
-    // Obstacle meshes (traces 0-5)
-    for (const obs of obstacles) {
-      const mesh = makeSphereMesh(obs.center, obs.radius);
-      baseTraces.push({
-        type: 'mesh3d',
-        x: mesh.x, y: mesh.y, z: mesh.z,
-        i: mesh.i, j: mesh.j, k: mesh.k,
-        color: '#c8d8ff',
-        opacity: 0.25,
-        flatshading: true,
-        lighting: { ambient: 0.6, diffuse: 0.4, specular: 0.05 },
-        showscale: false,
-        hoverinfo: 'skip',
-      });
-    }
-
-    // Drone position traces (traces 6-12)
-    for (let di = 0; di < numDrones; di++) {
-      const d = selFrames[0].drones[di];
-      baseTraces.push({
-        type: 'scatter3d',
-        mode: 'markers',
-        x: [d.pos[0]], y: [d.pos[1]], z: [d.pos[2]],
-        marker: { size: di === 0 ? 8 : 4, color: DRONE_COLORS_3D[di], line: { width: di === 0 ? 1 : 0.5, color: '#ffffff' } },
-        name: di === 0 ? 'Leader (D0)' : `Follower D${di}`,
-        hoverinfo: 'text',
-        text: `Drone ${di}${di === 0 ? ' (Leader)' : ''}`,
-      });
-    }
-
-    // Drone trail traces (traces 13-19)
-    for (let di = 0; di < numDrones; di++) {
-      const trailPts = trails[0][di];
-      baseTraces.push({
-        type: 'scatter3d',
-        mode: 'markers',
-        x: trailPts.map(p => p.x), y: trailPts.map(p => p.y), z: trailPts.map(p => p.z),
-        marker: {
-          size: trailPts.map((_, j) => 1 + (j / Math.max(trailPts.length, 1)) * 3),
-          color: trailPts.map((_, j) => {
-            const c = DRONE_COLORS_3D[di];
-            const a = 0.08 + (j / Math.max(trailPts.length, 1)) * 0.5;
-            return `rgba(${parseInt(c.slice(1,3),16)},${parseInt(c.slice(3,5),16)},${parseInt(c.slice(5,7),16)},${a.toFixed(2)})`;
-          }),
-          line: { width: 0 },
-        },
-        showlegend: false,
-        hoverinfo: 'skip',
-      });
-    }
-
-    // Build pre-computed frame data for fast restyle updates
-    const framePositions = selFrames.map(f => f.drones.map(d => d.pos));
-    const frameTrails = trails; // already computed
-
-    // Layout
-    const sceneLayout = {
-      paper_bgcolor: '#0a0e14',
-      plot_bgcolor: '#0a0e14',
-      font: { family: 'JetBrains Mono, monospace', size: 10, color: '#8b949e' },
-      scene: {
-        xaxis: { title: 'X (m)', range: [-10, 10], gridcolor: '#21262d', zerolinecolor: '#30363d' },
-        yaxis: { title: 'Y (m)', range: [0, 12], gridcolor: '#21262d', zerolinecolor: '#30363d' },
-        zaxis: { title: 'Z (m)', range: [-10, 10], gridcolor: '#21262d', zerolinecolor: '#30363d' },
-        camera: { eye: { x: 1.8, y: 1.2, z: 1.5 } },
-        aspectmode: 'manual',
-        aspectratio: { x: 1, y: 0.7, z: 1 },
-      },
-      margin: { l: 10, r: 10, t: 10, b: 10 },
-      showlegend: true,
-      legend: { font: { size: 9, color: '#8b949e' }, bgcolor: 'rgba(0,0,0,0.5)', x: 1.02 },
+    const proxLayout = {
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: 'JetBrains Mono, monospace', size: 8, color: TEXT_COLOR },
+      margin: { l: 80, r: 8, t: 5, b: 25 },
+      showlegend: false,
+      hovermode: 'closest',
+      xaxis: { title: { text: 'Time (s)' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', showticklabels: true },
+      yaxis: { title: { text: 'Event' }, gridcolor: GRID_COLOR, zerolinecolor: '#30363d', tickvals: uniqueLabels.map((_, i) => i), ticktext: uniqueLabels, tickfont: { size: 7 } },
     };
-
-    Plotly.newPlot('interactive3d', baseTraces, sceneLayout, { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'] });
-
-    // Playback state
-    let currentFrame = 0;
-    let isPlaying = false;
-    let playInterval = null;
-
-    const container = document.getElementById('interactive3d');
-
-    // HUD overlay
-    const hudDiv = document.createElement('div');
-    hudDiv.style.cssText = 'position:absolute;top:10px;left:12px;z-index:10;pointer-events:none;font-family:JetBrains Mono,monospace;font-size:11px;color:#39d353;text-shadow:0 0 4px rgba(57,211,53,0.3);';
-    hudDiv.innerHTML = '> SYSTEM: ROTATING WEDGE ENGAGED';
-    container.style.position = 'relative';
-    container.appendChild(hudDiv);
-
-    function updateFrame(fi) {
-      if (fi < 0 || fi >= framePositions.length) return;
-      currentFrame = fi;
-      const pos = framePositions[fi];
-      const trail = frameTrails[fi];
-
-      // Update drone positions (traces 6-12) - each trace gets its own single-point data
-      for (let di = 0; di < numDrones; di++) {
-        Plotly.restyle('interactive3d', {
-          x: [[pos[di][0]]],
-          y: [[pos[di][1]]],
-          z: [[pos[di][2]]],
-        }, 6 + di);
-      }
-
-      // Update trails (traces 13-19)
-      for (let di = 0; di < numDrones; di++) {
-        const pts = trail[di];
-        const n = Math.max(pts.length, 1);
-        const colors = pts.map((_, j) => {
-          const c = DRONE_COLORS_3D[di];
-          const a = 0.08 + (j / n) * 0.5;
-          return `rgba(${parseInt(c.slice(1,3),16)},${parseInt(c.slice(3,5),16)},${parseInt(c.slice(5,7),16)},${a.toFixed(2)})`;
-        });
-        const sizes = pts.map((_, j) => 1 + (j / n) * 3);
-        Plotly.restyle('interactive3d', {
-          x: [pts.map(p => p.x)],
-          y: [pts.map(p => p.y)],
-          z: [pts.map(p => p.z)],
-          'marker.color': [colors],
-          'marker.size': [sizes],
-        }, 13 + di);
-      }
-
-      // Update HUD
-      const t = selFrames[fi].t;
-      hudDiv.innerHTML = `> t = ${t.toFixed(1)}s / 18.0s`;
-    }
-
-    // Controls container
-    const ctrlDiv = document.createElement('div');
-    ctrlDiv.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 14px;background:#161b22;border:1px solid #21262d;border-top:none;border-radius:0 0 6px 6px;font-family:JetBrains Mono,monospace;';
-
-    const playBtn = document.createElement('button');
-    playBtn.innerHTML = '&#9654;';
-    playBtn.style.cssText = 'background:transparent;border:1px solid #30363d;color:#c9d1d9;padding:4px 14px;cursor:pointer;font-size:14px;border-radius:4px;';
-    playBtn.onmouseover = () => { playBtn.style.borderColor = '#3fb950'; playBtn.style.color = '#3fb950'; };
-    playBtn.onmouseout = () => { playBtn.style.borderColor = '#30363d'; playBtn.style.color = '#c9d1d9'; };
-
-    const slider = document.createElement('input');
-    slider.type = 'range';
-    slider.min = 0;
-    slider.max = framePositions.length - 1;
-    slider.value = 0;
-    slider.style.cssText = 'flex:1;accent-color:#3fb950;height:4px;cursor:pointer;';
-
-    const timeLabel = document.createElement('span');
-    timeLabel.style.cssText = 'font-size:11px;color:#8b949e;min-width:70px;text-align:center;';
-    timeLabel.textContent = '0.0s / 18.0s';
-
-    playBtn.onclick = () => {
-      if (isPlaying) {
-        isPlaying = false;
-        playBtn.innerHTML = '&#9654;';
-        clearInterval(playInterval);
-      } else {
-        isPlaying = true;
-        playBtn.innerHTML = '&#9632;';
-        playInterval = setInterval(() => {
-          let next = currentFrame + 1;
-          if (next >= framePositions.length) next = 0;
-          updateFrame(next);
-          slider.value = next;
-          const t = selFrames[next].t;
-          timeLabel.textContent = t.toFixed(1) + 's / 18.0s';
-        }, 60);
-      }
-    };
-
-    slider.oninput = () => {
-      const fi = parseInt(slider.value);
-      updateFrame(fi);
-      const t = selFrames[fi].t;
-      timeLabel.textContent = t.toFixed(1) + 's / 18.0s';
-    };
-
-    ctrlDiv.appendChild(playBtn);
-    ctrlDiv.appendChild(slider);
-    ctrlDiv.appendChild(timeLabel);
-    container.parentNode.insertBefore(ctrlDiv, container.nextSibling);
+    Plotly.newPlot('metricProximity', proxData, proxLayout, { responsive: true });
   })
-  .catch(err => {
-    const msg = 'Could not load simulation data. Run the simulation first.';
-    document.querySelector('.sim-viewport').innerHTML +=
-      '<div style="position:absolute;bottom:10px;left:10px;color:var(--red);font-size:0.8em;">' + msg + '</div>';
-    document.getElementById('interactive3d').innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red);font-size:0.8em;">' + msg + '</div>';
+  .catch(() => {
+    document.querySelectorAll('#metricFormError, #metricLambda2, #metricControlEffort, #metricProximity').forEach(el => {
+      el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red);font-size:0.7em;">Could not load data.</div>';
+    });
   });
+</script>
 
-// Sidebar toggle
+<script>
 document.getElementById('sidebarToggle')?.addEventListener('click', function() {
   document.querySelector('.sidebar').classList.toggle('open');
 });

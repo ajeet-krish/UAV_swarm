@@ -19,7 +19,7 @@ from src.viz.export import FrameExporter, sample_vector_field
 
 # Simulation parameters
 DT = 0.02
-TOTAL_TIME = 18.0
+TOTAL_TIME = 90.0
 NUM_STEPS = int(TOTAL_TIME / DT)
 
 # Formation definitions - Wedge offsets relative to leader
@@ -46,50 +46,72 @@ GUIDANCE_PARAMS = {
 R_COMM = 8.0
 LEADER_START = np.array([-8.0, 2.0, -8.0], dtype=np.float64)
 
-# 3D Looping Waypoints
+# 8 Waypoints: figure-8 path with vertical variation, low passes, and sharp turns
 WAYPOINTS = [
-    np.array([8.0, 9.0, -8.0], dtype=np.float64),    # WP2: High corner
-    np.array([8.0, 2.0, 8.0], dtype=np.float64),     # WP3: Low corner
-    np.array([-8.0, 9.0, 8.0], dtype=np.float64),    # WP4: High corner
-    np.array([0.0, 5.0, 0.0], dtype=np.float64),     # WP5: Center pass
-    np.array([-8.0, 2.0, -8.0], dtype=np.float64),   # WP1: Low corner (Start)
+    np.array([8.0, 9.0, -8.0], dtype=np.float64),    # WP1: High right
+    np.array([8.0, 2.0, 8.0], dtype=np.float64),     # WP2: Low opposite corner
+    np.array([-2.0, 8.0, 6.0], dtype=np.float64),    # WP3: High center-right gap
+    np.array([-8.0, 9.0, 8.0], dtype=np.float64),    # WP4: High left
+    np.array([-3.0, 3.0, -3.0], dtype=np.float64),   # WP5: Low center-left through obstacles
+    np.array([0.0, 5.0, 0.0], dtype=np.float64),     # WP6: Center pass
+    np.array([5.0, 7.0, -5.0], dtype=np.float64),    # WP7: Mid right figure-8 crossover
+    np.array([-8.0, 2.0, -8.0], dtype=np.float64),   # WP8: Start (loop back)
 ]
 
 
 def build_environment():
     env = Environment()
 
-    # 6 spherical asteroids placed strategically in the 3D space
-    env.add_obstacle(SphereObstacle(
-        center=[4.0, 5.0, 3.0],
-        radius=1.5,
-        label="Asteroid 1",
-    ))
-    env.add_obstacle(SphereObstacle(
-        center=[-4.0, 4.0, -3.0],
-        radius=1.8,
-        label="Asteroid 2",
-    ))
-    env.add_obstacle(SphereObstacle(
-        center=[2.0, 8.0, -4.0],
-        radius=1.2,
-        label="Asteroid 3",
-    ))
-    env.add_obstacle(SphereObstacle(
-        center=[-2.0, 7.0, 4.0],
-        radius=1.4,
-        label="Asteroid 4",
-    ))
-    env.add_obstacle(SphereObstacle(
-        center=[5.0, 2.0, -5.0],
-        radius=1.6,
-        label="Asteroid 5",
-    ))
-    env.add_obstacle(SphereObstacle(
-        center=[-5.0, 9.0, 2.0],
-        radius=1.3,
-        label="Asteroid 6",
-    ))
+    # Procedural density field: 9 additional obstacles for 15 total
+    # Seeded for reproducibility, then hand-tuned for cinematic narrow passages
+    rng = np.random.RandomState(42)
+    extra_centers = []
+    for _ in range(9):
+        for attempt in range(50):
+            cx = rng.uniform(-9.0, 9.0)
+            cy = rng.uniform(2.0, 10.0)
+            cz = rng.uniform(-9.0, 9.0)
+            # Keep start zone clear: sphere around LEADER_START
+            start_clear = np.linalg.norm(np.array([cx, cy, cz]) - LEADER_START) > 4.0
+            # Keep separation between obstacles
+            sep_ok = all(
+                np.linalg.norm(np.array([cx, cy, cz]) - np.array(c))
+                > 3.0 for c in extra_centers
+            )
+            if start_clear and sep_ok:
+                extra_centers.append([cx, cy, cz])
+                break
+
+    # Hand-tuned adjustments for narrow passages and cinematic lines of sight
+    extra_centers[0] = [3.0, 3.5, 2.0]      # Creates a low gap near WP2 path
+    extra_centers[1] = [-6.0, 7.0, -2.5]    # Flanking obstacle for WP1→WP8 corridor
+    extra_centers[2] = [0.0, 4.5, -6.0]     # Narrow passage on WP5→WP6 route
+    extra_centers[3] = [6.0, 8.5, -2.0]     # WP7 approach obstacle
+    extra_centers[4] = [-7.0, 5.0, 5.0]     # WP3→WP4 channel constraint
+    extra_centers[5] = [2.0, 9.0, 7.0]      # WP4 return path
+    extra_centers[6] = [-2.0, 2.5, 8.0]     # Low obstacle near WP2
+    extra_centers[7] = [5.0, 6.0, -7.0]     # WP7 low approach
+    extra_centers[8] = [-6.5, 9.5, -7.0]    # WP1 approach obstacle
+
+    radii = [1.5, 1.8, 1.2, 1.6, 1.4, 1.3, 1.0, 1.5, 1.7, 1.1, 1.4, 1.6, 1.2, 1.5, 1.3]
+
+    # 6 original strategic obstacles
+    originals = [
+        ([4.0, 5.0, 3.0], 1.5, "Asteroid 1"),
+        ([-4.0, 4.0, -3.0], 1.8, "Asteroid 2"),
+        ([2.0, 8.0, -4.0], 1.2, "Asteroid 3"),
+        ([-2.0, 7.0, 4.0], 1.4, "Asteroid 4"),
+        ([5.0, 2.0, -5.0], 1.6, "Asteroid 5"),
+        ([-5.0, 9.0, 2.0], 1.3, "Asteroid 6"),
+    ]
+
+    for i, (center, radius, label) in enumerate(originals):
+        env.add_obstacle(SphereObstacle(center=center, radius=radius, label=label))
+
+    # 9 procedural + hand-tuned additions
+    for i, center in enumerate(extra_centers):
+        r = radii[6 + i] if (6 + i) < len(radii) else 1.2
+        env.add_obstacle(SphereObstacle(center=center, radius=r, label=f"Asteroid {7 + i}"))
 
     return env
 
@@ -173,6 +195,7 @@ def main():
     exporter.add_meta("guidance_params", GUIDANCE_PARAMS)
     exporter.add_meta("r_comm", R_COMM)
     exporter.add_meta("target", target.tolist())
+    exporter.add_meta("waypoints", [wp.tolist() for wp in WAYPOINTS])
 
     print(f"Running {NUM_STEPS} steps (dt={DT}s, {TOTAL_TIME}s total)...")
 

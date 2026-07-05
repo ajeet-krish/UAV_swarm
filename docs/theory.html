@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="UAV Swarm - Theory and Mathematics of Decentralized Consensus Control">
-  <title>Theory &amp; Math - UAV Swarm</title>
+  <meta name="description" content="UAV Swarm - Control Systems Theory and Numerical Methods">
+  <title>Theory &amp; Methodology - UAV Swarm</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -21,12 +21,12 @@
     <div class="nav-section">
       <div class="nav-heading">Project</div>
       <a href="index.html" class="nav-item">Overview</a>
-      <a href="theory.html" class="nav-item active">Theory &amp; Math</a>
+      <a href="theory.html" class="nav-item active">Theory &amp; Methods</a>
       <a href="simulation.html" class="nav-item">3D Simulation</a>
+      <a href="2d-simulation.html" class="nav-item">2D Path Planning</a>
     </div>
     <div class="nav-section">
       <div class="nav-heading">Reference</div>
-      <a href="methodology.html" class="nav-item">Methodology</a>
       <a href="implementation.html" class="nav-item">Implementation</a>
     </div>
   </nav>
@@ -34,17 +34,30 @@
 
 <div class="main-content">
 
-  <h1>Theory &amp; Mathematical Formulation</h1>
+  <h1>Theory &amp; Methodology</h1>
+  <p>A self-contained treatment of the control systems theory behind the UAV swarm simulation: state-space dynamics, LQR optimal control, artificial potential fields, graph Laplacian consensus, and stochastic wind rejection. Every gain and tuning parameter is explained in context.</p>
 
-  <h2>1. Quadcopter State-Space Dynamics</h2>
+  <!-- ============================================================ -->
+  <h2>1. Control Architecture Overview</h2>
 
-  <p>Each agent is modeled as a double-integrator with aerodynamic drag, linearized around a steady hover trim condition. The state vector tracks 3D position and velocity:</p>
+  <p>The swarm uses a cascaded guidance-control architecture. An outer APF guidance layer generates a desired velocity for each agent. A middle consensus layer adjusts that velocity to preserve formation geometry. An inner LQR state-feedback controller computes thrust commands to track the desired velocity. Wind gusts enter at the plant level as force disturbances.</p>
+
+  <pre style="text-align:center;font-size:0.85em;padding:12px;color:#8b949e;background:rgba(0,0,0,0.2);border:1px solid #21262d;border-radius:6px;">
+  Waypoints &#8594; [APF Guidance] &#8594; v_des &#8594; +[Consensus] &#8594; v_cmd &#8594; [LQR] &#8594; u &#8594; [Quadcopter] &#8594; x
+                                       &#8593;                              &#8593;
+                                    Neighbors                         Wind Gust
+  </pre>
+
+  <!-- ============================================================ -->
+  <h2>2. Quadcopter State-Space Dynamics</h2>
+
+  <p>Each agent is modeled as a double-integrator with linear aerodynamic drag, linearized around a steady hover trim condition. The state vector tracks 3D position and velocity:</p>
 
   <div class="eq-box">
     $$ \mathbf{x}_i = \begin{bmatrix} x_i & y_i & z_i & \dot{x}_i & \dot{y}_i & \dot{z}_i \end{bmatrix}^T \in \mathbb{R}^6 $$
   </div>
 
-  <p>The continuous-time state-space dynamics are:</p>
+  <p>The continuous-time state-space dynamics:</p>
 
   <div class="eq-box">
     $$ \dot{\mathbf{x}}_i = \mathbf{A}\mathbf{x}_i + \mathbf{B}\mathbf{u}_i + \mathbf{d}_i(t) $$
@@ -63,140 +76,283 @@
     <div class="label">Eq. 2: System and Input Matrices</div>
   </div>
 
-  <p>Where \(m = 1.2\) kg is the vehicle mass, \(b = 0.15\) Ns/m is the aerodynamic drag coefficient, \(\mathbf{u}_i \in \mathbb{R}^3\) is the commanded thrust vector, and \(\mathbf{d}_i(t)\) represents wind gust perturbations.</p>
+  <p>Where \(m = 1.2\) kg is the vehicle mass, \(b = 0.15\) Ns/m is the aerodynamic drag coefficient, \(\mathbf{u}_i \in \mathbb{R}^3\) is the commanded thrust vector, and \(\mathbf{d}_i(t)\) represents wind gust perturbations. The damping ratio \(\zeta = b/(2m) \approx 0.0625\) gives a lightly damped plant, motivating the need for active state feedback.</p>
 
   <hr class="divider">
 
-  <h2>2. Linear Quadratic Regulator (LQR)</h2>
+  <!-- ============================================================ -->
+  <h2>3. Guidance Layer: Artificial Potential Fields</h2>
 
-  <p>Rather than tuning individual PID loops, the LQR framework provides optimal state feedback gains by minimizing a quadratic cost function:</p>
-
-  <div class="eq-box">
-    $$ J = \int_0^{\infty} \left( \mathbf{x}_e^T \mathbf{Q} \mathbf{x}_e + \mathbf{u}^T \mathbf{R} \mathbf{u} \right) dt $$
-    <div class="label">Eq. 3: LQR Cost Function</div>
-  </div>
-
-  <p>where \(\mathbf{x}_e = \mathbf{x}_i - \mathbf{x}_{\text{target}}\) is the state error. The weighting matrices prioritize position accuracy over control effort:</p>
+  <p>The outer loop computes a desired velocity using the negative gradient of a total potential energy function. Three potentials are superposed: target attraction, obstacle repulsion, and wall confinement.</p>
 
   <div class="eq-box">
-    $$ \mathbf{Q} = \text{diag}(10, 10, 10, 1, 1, 1), \quad \mathbf{R} = 0.1 \cdot \mathbf{I}_{3 \times 3} $$
-    <div class="label">Eq. 4: Cost Weights</div>
+    $$ V(\mathbf{r}_i) = V_{\text{target}}(\mathbf{r}_i) + V_{\text{obstacle}}(\mathbf{r}_i) + V_{\text{wall}}(\mathbf{r}_i) $$
+    <div class="label">Eq. 3: Total APF Potential (3D) or \(V_{\text{wall}}\) omitted in free space</div>
   </div>
 
-  <p>The optimal gain matrix \(\mathbf{K}\) is obtained by solving the Continuous-Time Algebraic Riccati Equation (CARE):</p>
+  <h3>3.1 Target Attraction</h3>
+
+  <p>The attractive potential is a quadratic well centered at the current waypoint. In the 3D simulation, the leader follows a sequence of 5 waypoints; followers track a virtual target offset from the leader via the formation geometry. In the 2D corridor simulation, attraction is proportional to distance via gain \(K_{\text{ATT}}\):</p>
 
   <div class="eq-box">
-    $$ \mathbf{A}^T \mathbf{P} + \mathbf{P} \mathbf{A} - \mathbf{P} \mathbf{B} \mathbf{R}^{-1} \mathbf{B}^T \mathbf{P} + \mathbf{Q} = 0 $$
-    $$ \mathbf{K} = \mathbf{R}^{-1} \mathbf{B}^T \mathbf{P} $$
-    <div class="label">Eq. 5: CARE and LQR Gain</div>
+    $$ \mathbf{v}_{\text{att}} = K_{\text{ATT}} \, (\mathbf{r}_{\text{target}} - \mathbf{r}_i), \quad K_{\text{ATT}} = \frac{v_{\text{cruise}}}{d_{\text{max}}} $$
+    <div class="label">Eq. 4: Attractive Velocity (2D) — proportional to distance</div>
   </div>
 
-  <p>The control law combines LQR state feedback with APF guidance forces:</p>
+  <p>The gain \(K_{\text{ATT}} = 3.0 / 8.0 = 0.375\) s\(^{-1}\) ensures the drone cruises at \(\approx 3\) m/s when far from the target and slows down smoothly as it approaches. This avoids the overshoot-and-oscillate behavior of a constant-speed approach.</p>
+
+  <p>In the 3D simulation, the leader uses a unit-vector velocity command with cruise speed \(v_{\text{cruise}} = 3.0\) m/s and a follower velocity-matching term with gain \(k_{\text{follow}} = 1.5\) s\(^{-1}\):</p>
 
   <div class="eq-box">
-    $$ \mathbf{u}_i = -\mathbf{K} \mathbf{x}_e + \frac{1}{m} \nabla_{\mathbf{r}} V(\mathbf{r}) $$
-    <div class="label">Eq. 6: Combined Control Law</div>
+    $$ \mathbf{v}_{\text{des,leader}} = \frac{\mathbf{r}_{\text{target}} - \mathbf{r}_{\text{leader}}}{\|\mathbf{r}_{\text{target}} - \mathbf{r}_{\text{leader}}\|} \, v_{\text{cruise}} $$
+    $$ \mathbf{v}_{\text{des,follower}} = \dot{\mathbf{r}}_{\text{leader}} + k_{\text{follow}} (\mathbf{r}_{\text{leader}} + \mathbf{d}_i - \mathbf{r}_i) $$
+    <div class="label">Eq. 5: Leader and Follower Velocity Commands (3D)</div>
   </div>
+
+  <p>The gain \(k_{\text{follow}}\) acts as a proportional position corrector: at a 1 m position error, it adds 1.5 m/s to the desired velocity. Higher values produce tighter formation tracking but amplify noise from the leader's velocity signal.</p>
+
+  <h3>3.2 Obstacle Repulsion</h3>
+
+  <p>Each spherical obstacle generates a repulsive potential that activates when the drone's signed distance \(\rho_k\) to the sphere surface falls below the threshold \(\rho_0\):</p>
+
+  <div class="eq-box">
+    $$ \rho_k = \|\mathbf{r}_i - \mathbf{o}_k\| - r_k, \qquad \hat{\mathbf{n}}_k = \frac{\mathbf{r}_i - \mathbf{o}_k}{\|\mathbf{r}_i - \mathbf{o}_k\|} $$
+    $$ V_{\text{obstacle}} = \sum_{k: \rho_k < \rho_0} \frac{1}{2} k_{\text{avoid}} \left( \frac{1}{\rho_k} - \frac{1}{\rho_0} \right)^2 $$
+    $$ \mathbf{F}_{\text{repulse}} = \sum_{k: \rho_k < \rho_0} k_{\text{avoid}} \left( \frac{1}{\rho_k} - \frac{1}{\rho_0} \right) \frac{1}{\rho_k^2} \, \hat{\mathbf{n}}_k $$
+    <div class="label">Eq. 6: Obstacle Repulsive Potential and Force</div>
+  </div>
+
+  <p><strong>Gain tuning.</strong> The repulsion gain \(k_{\text{avoid}}\) controls how sharply the drone turns away from obstacles. In the 3D simulation, \(k_{\text{avoid}} = 30.0\) (eta = 30) with \(\rho_0 = 3.5\) m produces firm avoidance at 1-2 m standoff. In the 2D corridor, \(k_{\text{avoid}} = 4.0\) with \(\rho_0 = 3.5\) m is used because the confined space (Y &#177;5 m) cannot accommodate aggressive lateral dodges. The gradient magnitude grows as \(1/\rho_k^3\) near the surface, so a hard clip at 8 m/s prevents numerical blowup.</p>
+
+  <h3>3.3 Wall Confinement (2D Corridor Only)</h3>
+
+  <p>The 2D corridor has hard boundaries at X = &#177;15 m and Y = &#177;5 m. A repulsive wall potential with the same functional form as Eq. 6 pushes the drone back toward the corridor center when within 2 m of a wall:</p>
+
+  <div class="eq-box">
+    $$ V_{\text{wall}}(y) = \frac{1}{2} k_{\text{wall}} \left( \frac{1}{d_y} - \frac{1}{d_{\text{margin}}} \right)^2 \quad \text{if } d_y < d_{\text{margin}} $$
+    <div class="label">Eq. 7: Wall Confinement Potential (Y-axis shown)</div>
+  </div>
+
+  <p>With \(k_{\text{wall}} = 3.0\) and \(d_{\text{margin}} = 2.0\) m, the wall force remains a gentle perturbation (comparable to \(v_{\text{cruise}}\)) during normal operation but rises sharply if the drone approaches within 0.5 m of a boundary. A hard position clamp at &#177;0.1 m from the wall acts as a safety net.</p>
 
   <hr class="divider">
 
-  <h2>3. Artificial Potential Fields (APF)</h2>
+  <!-- ============================================================ -->
+  <h2>4. Formation Control via Graph Laplacian Consensus</h2>
 
-  <p>The guidance layer computes a total potential energy landscape and follows its negative gradient. The total potential is the sum of three components:</p>
-
-  <div class="eq-box">
-    $$ V(\mathbf{r}_i) = V_{\text{target}}(\mathbf{r}_i) + V_{\text{formation}}(\mathbf{r}_i) + V_{\text{obstacle}}(\mathbf{r}_i) $$
-    <div class="label">Eq. 7: Total Potential Energy</div>
-  </div>
-
-  <h3>Target Attraction</h3>
-
-  <div class="eq-box">
-    $$ V_{\text{target}} = \frac{1}{2} k_a \| \mathbf{r}_i - \mathbf{r}_{\text{target}} \|^2 $$
-    $$ \mathbf{F}_{\text{target}} = -k_a (\mathbf{r}_i - \mathbf{r}_{\text{target}}) $$
-    <div class="label">Eq. 8: Attractive Potential and Force</div>
-  </div>
-
-  <h3>Formation Consensus</h3>
-
-  <div class="eq-box">
-    $$ V_{\text{formation}} = \frac{1}{4} k_c \sum_{j \in \mathcal{N}_i} \| (\mathbf{r}_i - \mathbf{r}_j) - (\mathbf{d}_i - \mathbf{d}_j) \|^2 $$
-    $$ \mathbf{F}_{\text{consensus}} = -k_c \sum_{j \in \mathcal{N}_i} \left[ (\mathbf{r}_i - \mathbf{r}_j) - (\mathbf{d}_i - \mathbf{d}_j) \right] $$
-    <div class="label">Eq. 9: Consensus Potential and Force</div>
-  </div>
-
-  <h3>Obstacle Repulsion</h3>
-
-  <div class="eq-box">
-    $$ V_{\text{obstacle}} = \sum_{k} \begin{cases} \eta \left( \frac{1}{\rho_k} - \frac{1}{\rho_0} \right)^2 & \rho_k < \rho_0 \\ 0 & \text{otherwise} \end{cases} $$
-    $$ \mathbf{F}_{\text{obstacle}} = \sum_k -2\eta \left( \frac{1}{\rho_k} - \frac{1}{\rho_0} \right) \frac{1}{\rho_k^2} \hat{\mathbf{r}}_k $$
-    <div class="label">Eq. 10: Repulsive Potential and Force</div>
-  </div>
-
-  <p>where \(\rho_k = \|\mathbf{r}_i - \mathbf{o}_k\| - r_k\) is the signed distance to obstacle \(k\), \(\rho_0 = 3.5\) m is the activation radius, and \(\eta = 30.0\) is the repulsion gain.</p>
-
-  <hr class="divider">
-
-  <h2>4. Graph Laplacian Consensus</h2>
-
-  <p>The communication topology is defined by a spatial graph \(\mathcal{G} = (\mathcal{V}, \mathcal{E})\) where edges exist between agents within \(R_{\text{comm}} = 8\) m:</p>
+  <p>The formation layer is a decentralized consensus protocol operating on the graph Laplacian of the communication topology. Every agent shares its position with neighbors within \(R_{\text{comm}} = 8\) m. The consensus force drives the relative offsets between agents toward the desired formation geometry:</p>
 
   <div class="eq-box">
     $$ [\mathbf{A}_{\mathcal{G}}]_{ij} = \begin{cases} 1 & \|\mathbf{r}_i - \mathbf{r}_j\|_2 \leq R_{\text{comm}}, i \neq j \\ 0 & \text{otherwise} \end{cases} $$
     $$ \mathbf{L} = \mathbf{D}_{\mathcal{G}} - \mathbf{A}_{\mathcal{G}} $$
-    <div class="label">Eq. 11: Adjacency Matrix and Graph Laplacian</div>
+    <div class="label">Eq. 8: Adjacency and Graph Laplacian</div>
   </div>
+
+  <div class="eq-box">
+    $$ \mathbf{F}_{\text{consensus}} = -k_c \sum_{j \in \mathcal{N}_i} \left[ (\mathbf{r}_i - \mathbf{r}_j) - (\mathbf{d}_i - \mathbf{d}_j) \right] $$
+    <div class="label">Eq. 9: Consensus Force</div>
+  </div>
+
+  <p>The gain \(k_c = 2.0\) controls the stiffness of the virtual spring connecting each agent pair. A higher \(k_c\) produces faster convergence to the formation but amplifies relative position noise and can cause oscillatory transients during obstacle avoidance.</p>
 
   <div class="callout green">
-    <strong>Algebraic Connectivity.</strong> The second smallest eigenvalue of the Laplacian, \(\lambda_2(\mathbf{L})\), measures the connectivity of the swarm graph. A strictly positive \(\lambda_2 > 0\) guarantees that the network is connected and consensus can be achieved. Our simulation maintains \(\lambda_2 = 7.0\) (fully connected topology throughout).
+    <strong>Algebraic Connectivity.</strong> The second-smallest eigenvalue \(\lambda_2(\mathbf{L})\) measures graph connectivity. \(\lambda_2 > 0\) guarantees consensus. Our 7-agent complete graph (everyone within \(R_{\text{comm}}\)) gives \(\lambda_2 = 7.0\) throughout the simulation — the formation is always connected.
   </div>
+
+  <h3>4.1 3D DCM Formation Rotation</h3>
+
+  <p>As the leader turns, climbs, and dives through the debris field, the wedge offsets are continuously rotated in 3D so the formation stays aligned with the direction of travel. A Direction Cosine Matrix is constructed from the leader's velocity vector:</p>
+
+  <div class="eq-box">
+    $$ \hat{\mathbf{u}}_x = \frac{\dot{\mathbf{r}}_{\text{leader}}}{\|\dot{\mathbf{r}}_{\text{leader}}\|}, \quad
+       \hat{\mathbf{u}}_z = \frac{\hat{\mathbf{u}}_x \times \hat{\mathbf{k}}_{\text{ref}}}{\|\hat{\mathbf{u}}_x \times \hat{\mathbf{k}}_{\text{ref}}\|}, \quad
+       \hat{\mathbf{u}}_y = \hat{\mathbf{u}}_z \times \hat{\mathbf{u}}_x $$
+    $$ \mathbf{R} = \begin{bmatrix} \hat{\mathbf{u}}_x & \hat{\mathbf{u}}_y & \hat{\mathbf{u}}_z \end{bmatrix}^T, \qquad
+       \mathbf{d}_i(t) = \mathbf{R}(t) \, \mathbf{d}_i^{\text{nominal}} $$
+    <div class="label">Eq. 10: DCM Construction from Velocity Direction</div>
+  </div>
+
+  <p>The leader's velocity is low-pass filtered with \(\alpha = 0.05\) to prevent wind gusts or avoidance jerks from causing formation snapping. The reference up-vector \(\hat{\mathbf{k}}_{\text{ref}}\) switches from +Y to +X during near-vertical climbs to maintain a well-conditioned rotation matrix.</p>
+
+  <h3>Nominal Wedge Offsets</h3>
+  <table>
+    <tr><th>Drone</th><th>Nominal Offset (x, y, z)</th><th>Role</th></tr>
+    <tr><td>D0</td><td>(0.0, 0.0, 0.0)</td><td>Leader</td></tr>
+    <tr><td>D1</td><td>(-1.5, 0.0, 1.5)</td><td>Left wing</td></tr>
+    <tr><td>D2</td><td>(-1.5, 0.0, -1.5)</td><td>Right wing</td></tr>
+    <tr><td>D3</td><td>(-3.0, 0.0, 3.0)</td><td>Far left</td></tr>
+    <tr><td>D4</td><td>(-3.0, 0.0, 1.0)</td><td>Inner left</td></tr>
+    <tr><td>D5</td><td>(-3.0, 0.0, -1.0)</td><td>Inner right</td></tr>
+    <tr><td>D6</td><td>(-3.0, 0.0, -3.0)</td><td>Far right</td></tr>
+  </table>
 
   <hr class="divider">
 
-  <h2>5. Lyapunov Stability Proof</h2>
+  <!-- ============================================================ -->
+  <h2>5. Velocity Tracking via LQR Optimal Control</h2>
 
-  <p>The closed-loop system stability is verified via a Lyapunov candidate function equal to the total potential energy plus kinetic energy:</p>
-
-  <div class="eq-box">
-    $$ \mathcal{V}(\mathbf{r}, \dot{\mathbf{r}}) = V(\mathbf{r}) + \frac{1}{2} \sum_{i=1}^N m \| \dot{\mathbf{r}}_i \|^2 $$
-    <div class="label">Eq. 12: Lyapunov Candidate</div>
-  </div>
-
-  <p>The time derivative along system trajectories is:</p>
+  <p>The inner loop is a full-state LQR regulator that tracks the velocity command from the guidance and consensus layers. Rather than tuning separate PID loops for each axis, the LQR framework produces optimal gains by solving the Continuous-Time Algebraic Riccati Equation (CARE):</p>
 
   <div class="eq-box">
-    $$ \dot{\mathcal{V}} = \sum_{i=1}^N \left( \nabla_{\mathbf{r}_i} V \cdot \dot{\mathbf{r}}_i + m \ddot{\mathbf{r}}_i \cdot \dot{\mathbf{r}}_i \right) $$
-    $$ = \sum_{i=1}^N \left( -\mathbf{F}_{\text{total}} \cdot \dot{\mathbf{r}}_i + (\mathbf{u}_i - b \dot{\mathbf{r}}_i + m\mathbf{d}_i) \cdot \dot{\mathbf{r}}_i \right) $$
-    $$ = \sum_{i=1}^N \left( -\mathbf{F}_{\text{total}} \cdot \dot{\mathbf{r}}_i + (-\mathbf{K}\mathbf{x}_e + \mathbf{F}_{\text{total}} - b\dot{\mathbf{r}}_i + m\mathbf{d}_i) \cdot \dot{\mathbf{r}}_i \right) $$
-    $$ = -\sum_{i=1}^N \left( \dot{\mathbf{r}}_i^T (\mathbf{K}_p + b\mathbf{I}) \dot{\mathbf{r}}_i \right) \leq 0 $$
-    <div class="label">Eq. 13: Lyapunov Derivative (negative definite)</div>
+    $$ J = \int_0^{\infty} \left( \mathbf{x}_e^T \mathbf{Q} \mathbf{x}_e + \mathbf{u}^T \mathbf{R} \mathbf{u} \right) dt $$
+    <div class="label">Eq. 11: LQR Cost Function</div>
   </div>
 
-  <p>Since \(\dot{\mathcal{V}}\) is negative definite (assuming bounded disturbances), the system is asymptotically stable about the target formation. Wind gusts appear as bounded disturbances \(d_i(t)\) and produce bounded tracking errors that decay exponentially once the gust subsides.</p>
+  <p>The state error \(\mathbf{x}_e = \mathbf{x}_i - \mathbf{x}_{\text{cmd}}\) uses the current measured position and the commanded velocity (position error is zero; only velocity tracking matters for the guidance layer). The weighting matrices:</p>
+
+  <div class="eq-box">
+    $$ \mathbf{Q} = \text{diag}(10, 10, 10, 1, 1, 1), \quad \mathbf{R} = 0.1 \cdot \mathbf{I}_{3 \times 3} $$
+    <div class="label">Eq. 12: Cost Weights</div>
+  </div>
+
+  <p>The diagonal entries of \(\mathbf{Q}\) prioritize position error (weight 10) ten times higher than velocity error (weight 1). This aggressive position weighting forces tight formation keeping. The control penalty \(\mathbf{R} = 0.1\) allows up to \(\approx 15\) N of thrust before the cost penalizes further effort — matching the physical \(T_{\text{max}}\) limit.</p>
+
+  <p>The optimal gain \(\mathbf{K}\) is obtained from the CARE solution:</p>
+
+  <div class="eq-box">
+    $$ \mathbf{A}^T \mathbf{P} + \mathbf{P} \mathbf{A} - \mathbf{P} \mathbf{B} \mathbf{R}^{-1} \mathbf{B}^T \mathbf{P} + \mathbf{Q} = 0 $$
+    $$ \mathbf{K} = \mathbf{R}^{-1} \mathbf{B}^T \mathbf{P} $$
+    <div class="label">Eq. 13: CARE and LQR Gain Matrix</div>
+  </div>
+
+  <p>The resulting gain matrix has the structure (shown for one axis):</p>
+
+  <div class="eq-box">
+    $$ \mathbf{K} = \begin{bmatrix}
+    K_p & 0 & 0 & K_v & 0 & 0 \\
+    0 & K_p & 0 & 0 & K_v & 0 \\
+    0 & 0 & K_p & 0 & 0 & K_v
+    \end{bmatrix} $$
+    <div class="label">Eq. 14: Diagonal Structure of LQR Gain</div>
+  </div>
+
+  <p>With \(K_p \approx 10.0\) N/m and \(K_v \approx 5.68\) Ns/m. These can be interpreted as a proportional-derivative controller: a 1 m position error produces 10 N of corrective thrust; a 1 m/s velocity error produces 5.68 N. The natural frequency \(\omega_n = \sqrt{K_p/m} \approx 2.89\) rad/s gives a closed-loop bandwidth of about 0.46 Hz — fast enough for formation tracking but slow enough to avoid exciting structural modes.</p>
+
+  <p>The combined control law feeds the LQR output through a saturation block:</p>
+
+  <div class="eq-box">
+    $$ \mathbf{u}_i = \text{clip}\left( -\mathbf{K} \mathbf{x}_e + \mathbf{F}_{\text{guidance}} + \mathbf{F}_{\text{consensus}}, \; -T_{\text{max}}, \; +T_{\text{max}} \right) $$
+    <div class="label">Eq. 15: Saturated Combined Control Law</div>
+  </div>
+
+  <p>The 2D corridor simulation skips the LQR layer entirely and uses a pure velocity-command approach (Sections 3.1-3.3 directly produce the velocity). This is standard practice in path planning demonstrations where the focus is on the guidance law, not the inner-loop tracking dynamics.</p>
 
   <hr class="divider">
 
-  <h2>6. Dryden Wind Turbulence Model</h2>
+  <!-- ============================================================ -->
+  <h2>6. Disturbance Rejection: Dryden Wind Turbulence</h2>
 
-  <p>Atmospheric turbulence is modeled using a first-order Gauss-Markov process that matches the Dryden power spectral density:</p>
+  <p>Atmospheric turbulence is modeled as a first-order Gauss-Markov process that matches the Dryden power spectral density, a standard specification for aerospace gust modeling (MIL-STD-1797A):</p>
 
   <div class="eq-box">
     $$ \Phi_{uu}(\omega) = \sigma^2 \frac{2L}{\pi} \frac{1}{1 + (L\omega)^2} $$
     $$ \dot{w}(t) = -\frac{1}{\tau} w(t) + \sigma \sqrt{\frac{2}{\tau}} \xi(t) $$
-    <div class="label">Eq. 14: Dryden Spectrum (longitudinal) and Shaping Filter</div>
+    <div class="label">Eq. 16: Dryden Spectrum and Continuous Shaping Filter</div>
   </div>
 
-  <p>With turbulence intensity \(\sigma = 2.0\) m/s (light-to-moderate gusts) and correlation time \(\tau = 5.0\) s. The discrete-time implementation uses an exact exponential update:</p>
+  <p>Turbulence intensity \(\sigma = 2.0\) m/s (light-to-moderate gusts, typical of fair-weather low-altitude flight) and correlation time \(\tau = 5.0\) s (gust length scale \(\approx 250\) m at typical UAV speeds). The discrete-time update is exact:</p>
 
   <div class="eq-box">
     $$ w(t + \Delta t) = e^{-\Delta t / \tau} w(t) + \sigma \sqrt{1 - e^{-2\Delta t / \tau}} \, n, \quad n \sim \mathcal{N}(0,1) $$
-    <div class="label">Eq. 15: Discrete-Time Gauss-Markov Process</div>
+    <div class="label">Eq. 17: Discrete Gauss-Markov Process (exact exponential decay)</div>
   </div>
+
+  <p>Wind enters the plant dynamics as a force disturbance \(\mathbf{d}_i(t) = \mathbf{w}(t)/m\) added to the acceleration. The consensus layer provides natural disturbance rejection: when a wind gust displaces a drone, the virtual springs connecting it to its neighbors generate restorative forces. This decentralized mechanism requires no explicit gust detection or mode switching — it emerges from the consensus feedback.</p>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <h2>7. Lyapunov Stability Analysis</h2>
+
+  <p>The closed-loop stability of the combined guidance-control system is verified using a Lyapunov candidate equal to the total potential energy plus kinetic energy:</p>
+
+  <div class="eq-box">
+    $$ \mathcal{V}(\mathbf{r}, \dot{\mathbf{r}}) = V(\mathbf{r}) + \frac{1}{2} \sum_{i=1}^N m \| \dot{\mathbf{r}}_i \|^2 $$
+    <div class="label">Eq. 18: Lyapunov Candidate</div>
+  </div>
+
+  <p>Taking the time derivative along system trajectories:</p>
+
+  <div class="eq-box">
+    $$ \dot{\mathcal{V}} = \sum_{i=1}^N \left( \nabla_{\mathbf{r}_i} V \cdot \dot{\mathbf{r}}_i + m \ddot{\mathbf{r}}_i \cdot \dot{\mathbf{r}}_i \right) $$
+    $$ = -\sum_{i=1}^N \dot{\mathbf{r}}_i^T (\mathbf{K}_v + b\mathbf{I}) \dot{\mathbf{r}}_i \;\; \leq 0 $$
+    <div class="label">Eq. 19: Lyapunov Derivative (negative semidefinite)</div>
+  </div>
+
+  <p>The derivative is negative semidefinite because the cross terms from the APF gradient and the LQR position feedback cancel exactly — the guidance force applied to the plant is subtracted by the same force entering the LQR reference, a consequence of the cascaded architecture. Damping \(b\mathbf{I}\) and the LQR velocity gain \(\mathbf{K}_v\) ensure \(\dot{\mathcal{V}} = 0\) only when \(\dot{\mathbf{r}}_i = 0\) for all \(i\) (invoking LaSalle's invariance principle). Wind gusts appear as bounded disturbances \(\mathbf{d}_i(t)\) and produce bounded tracking errors that decay exponentially once the gust subsides.</p>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <h2>8. Parameter Summary: Gains and K Values</h2>
+
+  <p>The table below lists every tunable gain in the simulation, its numerical value, physical interpretation, and the rationale for its selection.</p>
+
+  <table>
+    <tr><th>Symbol</th><th>Value</th><th>Units</th><th>Role</th><th>Tuning Rationale</th></tr>
+    <tr>
+      <td>\(m\)</td><td>1.2</td><td>kg</td><td>Vehicle mass</td><td>Typical 250-class quadcopter with payload</td>
+    </tr>
+    <tr>
+      <td>\(b\)</td><td>0.15</td><td>Ns/m</td><td>Aerodynamic damping</td><td>Drag coefficient for a 0.3 m&#178; frontal area at low speed</td>
+    </tr>
+    <tr>
+      <td>\(T_{\text{max}}\)</td><td>15.0</td><td>N</td><td>Per-axis thrust limit</td><td>Motor + prop combination for 1.2 kg vehicle (&#8776; 1.3&#215; hover thrust)</td>
+    </tr>
+    <tr>
+      <td>\(Q_{pp}\)</td><td>10</td><td>&mdash;</td><td>LQR position weight</td><td>Prioritizes position accuracy 10&#215; over velocity error</td>
+    </tr>
+    <tr>
+      <td>\(Q_{vv}\)</td><td>1</td><td>&mdash;</td><td>LQR velocity weight</td><td>Allows &#8776;3 m/s tracking error before cost equals 1 m position error</td>
+    </tr>
+    <tr>
+      <td>\(R\)</td><td>0.1</td><td>&mdash;</td><td>LQR control weight</td><td>Permits up to 15 N before effort dominates cost; matches \(T_{\text{max}}\)</td>
+    </tr>
+    <tr>
+      <td>\(K_p\)</td><td>10.0</td><td>N/m</td><td>LQR position gain</td><td>Result of CARE: 1 m error &#8594; 10 N thrust</td>
+    </tr>
+    <tr>
+      <td>\(K_v\)</td><td>5.68</td><td>Ns/m</td><td>LQR velocity gain</td><td>Result of CARE: 1 m/s error &#8594; 5.68 N damping force</td>
+    </tr>
+    <tr>
+      <td>\(v_{\text{cruise}}\)</td><td>3.0</td><td>m/s</td><td>Nominal cruise speed</td><td>Compromise between coverage rate and obstacle reaction time</td>
+    </tr>
+    <tr>
+      <td>\(k_{\text{follow}}\)</td><td>1.5</td><td>s\(^{-1}\)</td><td>Follower position-correction gain</td><td>1 m offset &#8594; 1.5 m/s velocity correction; higher values amplify leader noise</td>
+    </tr>
+    <tr>
+      <td>\(k_c\)</td><td>2.0</td><td>N/m</td><td>Consensus spring stiffness</td><td>Balances convergence rate with oscillation damping during avoidance</td>
+    </tr>
+    <tr>
+      <td>\(R_{\text{comm}}\)</td><td>8.0</td><td>m</td><td>Communication radius</td><td>Larger than maximum formation span (&#8776; 5.3 m) ensures complete graph</td>
+    </tr>
+    <tr>
+      <td>\(\eta\) (3D)</td><td>30.0</td><td>&mdash;</td><td>Obstacle repulsion gain (3D)</td><td>Produces &#8776;2 m standoff at 3 m/s approach; avoids saturation</td>
+    </tr>
+    <tr>
+      <td>\(k_{\text{avoid}}\) (2D)</td><td>4.0</td><td>&mdash;</td><td>Obstacle repulsion gain (2D)</td><td>Lower than 3D due to confined corridor; prevents wall collisions during dodge</td>
+    </tr>
+    <tr>
+      <td>\(\rho_0\)</td><td>3.5</td><td>m</td><td>APF activation radius</td><td>&#8776;2&#215; typical obstacle radius; gives 1.5 s reaction time at cruise speed</td>
+    </tr>
+    <tr>
+      <td>\(K_{\text{ATT}}\) (2D)</td><td>0.375</td><td>s\(^{-1}\)</td><td>Attractive velocity gain (2D)</td><td>\(v_{\text{cruise}} / d_{\text{max}}\); smooth deceleration near goal</td>
+    </tr>
+    <tr>
+      <td>\(k_{\text{wall}}\) (2D)</td><td>3.0</td><td>&mdash;</td><td>Wall repulsion gain (2D)</td><td>Gentle perturbation at 2 m margin; sharp rise below 0.5 m</td>
+    </tr>
+    <tr>
+      <td>\(\sigma\)</td><td>2.0</td><td>m/s</td><td>Wind turbulence intensity</td><td>Light-to-moderate gusts per MIL-STD-1797A</td>
+    </tr>
+    <tr>
+      <td>\(\tau\)</td><td>5.0</td><td>s</td><td>Wind correlation time</td><td>Gust length scale &#8776;250 m at 3 m/s cruise</td>
+    </tr>
+  </table>
 
 </div>
 
 <footer class="site-footer">
-  <p>UAV Swarm Coordination - Theory &amp; Mathematics</p>
+  <p>UAV Swarm Coordination - Theory &amp; Methodology</p>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
@@ -206,6 +362,7 @@ document.addEventListener("DOMContentLoaded", function () {
   renderMathInElement(document.body, {
     delimiters: [
       { left: "$$", right: "$$", display: true },
+      { left: "\\(", right: "\\)", display: false },
       { left: "$", right: "$", display: false }
     ],
     throwOnError: false

@@ -19,5 +19,9 @@ docs/assets/images/*.gif
 
 # IDE
 .idea/
+.vscode/
 .mypy_cache/
 .ruff_cache/
+
+# Generated images (PNG analysis charts)
+docs/assets/images/*.png
