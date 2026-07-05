@@ -12,10 +12,10 @@ wheels/
 # macOS
 .DS_Store
 
-# Simulation output
-docs/assets/data/*.json
-docs/assets/videos/*.mp4
-docs/assets/images/*.gif
+# Simulation output (uncomment to keep local-only; needed by GitHub Pages)
+# docs/assets/data/*.json
+# docs/assets/videos/*.mp4
+# docs/assets/images/*.gif
 
 # IDE
 .idea/
