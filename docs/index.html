@@ -19,13 +19,15 @@
   <nav class="sidebar-nav">
     <div class="nav-section">
       <div class="nav-heading">Project</div>
-      <a href="index.html" class="nav-item active">Overview</a>
-      <a href="theory.html" class="nav-item">Theory &amp; Methods</a>
-      <a href="simulation.html" class="nav-item">3D Simulation</a>
-      <a href="2d-simulation.html" class="nav-item">2D Path Planning</a>
+      <a href="#overview" class="nav-item active" data-section="overview">Overview</a>
+      <a href="2d-simulation.html" class="nav-item" data-section="2d-teaser">2D Path Planning</a>
+      <div class="nav-subheading">Video / Sweep / Gates / Safety</div>
+      <a href="simulation.html" class="nav-item" data-section="3d-teaser">3D Swarm Simulation</a>
+      <div class="nav-subheading">Viewer / Metrics / Obstacles</div>
     </div>
     <div class="nav-section">
       <div class="nav-heading">Reference</div>
+      <a href="theory.html" class="nav-item">Theory &amp; Methods</a>
       <a href="implementation.html" class="nav-item">Implementation</a>
     </div>
   </nav>
@@ -33,7 +35,7 @@
 
 <div class="main-content">
 
-  <section class="hero">
+  <section class="hero" id="overview" data-section="overview">
     <h1>Distributed UAV Swarm Coordination</h1>
     <p class="subtitle">
       Decentralized consensus formation control with Artificial Potential Fields,
@@ -46,104 +48,59 @@
     </div>
   </section>
 
-  <hr class="divider">
-
   <div class="stats">
     <div class="stat"><span class="num">7</span><span class="lbl">Autonomous Drones</span></div>
     <div class="stat"><span class="num">6-DOF</span><span class="lbl">State Space per Agent</span></div>
-    <div class="stat"><span class="num">LQR</span><span class="lbl">Optimal State Feedback</span></div>
-    <div class="stat"><span class="num">APF</span><span class="lbl">Potential Field Guidance</span></div>
-    <div class="stat"><span class="num">6</span><span class="lbl">Orbital Obstacles</span></div>
-  </div>
-
-  <h2>Engineering Architecture</h2>
-
-  <p>
-    This project demonstrates a complete decentralized multi-agent control pipeline:
-    state-space modeling, Linear Quadratic Regulator (LQR) synthesis, Artificial
-    Potential Field (APF) guidance, graph-theoretic consensus via the Laplacian
-    spectrum, and stochastic wind gust rejection using the Dryden turbulence model.
-  </p>
-
-  <div class="card-grid">
-    <a href="theory.html" class="card mod-theory">
-      <span class="tag">GNC Mathematics</span>
-      <h3>State-Space &amp; Optimal Control</h3>
-      <p>LQR synthesis via continuous-time algebraic Riccati equation. Lyapunov stability proof. Graph Laplacian connectivity.</p>
-      <span class="arrow">View theory &rarr;</span>
-    </a>
-    <a href="simulation.html" class="card mod-sim">
-      <span class="tag">3D Animation</span>
-      <h3>Live Swarm Simulation</h3>
-      <p>Matplotlib 3D animation with formation tracking, metric charts, and playback controls. 3D DCM heading-aligned wedge.</p>
-      <span class="arrow">Launch simulation &rarr;</span>
-    </a>
-    <a href="theory.html" class="card mod-method">
-      <span class="tag">Methods</span>
-      <h3>Theory &amp; Methodology</h3>
-      <p>Complete control theory: state-space dynamics, LQR optimal control, APF guidance, graph Laplacian consensus, Lyapunov stability, wind rejection.</p>
-      <span class="arrow">View theory &rarr;</span>
-    </a>
-    <a href="implementation.html" class="card">
-      <span class="tag">Code</span>
-      <h3>Implementation</h3>
-      <p>Python simulation engine architecture: modular src/ layout, RK4 integration, MP4/GIF animation pipeline.</p>
-      <span class="arrow">View code &rarr;</span>
-    </a>
-    <a href="2d-simulation.html" class="card mod-sim">
-      <span class="tag">2D APF</span>
-      <h3>2D Corridor Path Planning</h3>
-      <p>APF-based path planning in a constrained corridor. Monte Carlo validation, gain sweep analysis, sensitivity heatmap.</p>
-      <span class="arrow">Explore 2D sim &rarr;</span>
-    </a>
+    <div class="stat"><span class="num">LQR</span><span class="lbl">Optimal Control</span></div>
+    <div class="stat"><span class="num">APF</span><span class="lbl">Obstacle Guidance</span></div>
+    <div class="stat"><span class="num">15</span><span class="lbl">Debris Obstacles</span></div>
+    <div class="stat"><span class="num">90s</span><span class="lbl">Simulation Run</span></div>
   </div>
 
   <hr class="divider">
 
-  <h2>Key Validation Metrics</h2>
+  <section class="teaser-card" id="2d-teaser" data-section="2d-teaser">
+    <img src="assets/images/teaser_2d.jpg" alt="2D slalom corridor layout" class="teaser-img" loading="lazy">
+    <div class="teaser-text">
+      <h3>2D APF Slalom Path Planning</h3>
+      <p>APF-based navigation through a dense 15-obstacle slalom corridor. Ten gain values from 0.05 to 10 reveal four distinct behavioral regimes: corner-cutting at low gain, local equilibrium stall at intermediate gain, optimal slalom at k_a = 4, and saturating repulsion at high gain. The full analysis includes gain sweep overlay, faceted comparison, clearance trade-study heatmap, gate performance dashboard, speed-space phase portrait, and Monte Carlo safety envelope.</p>
+      <a href="2d-simulation.html" class="teaser-link">View Full Analysis &rarr;</a>
+    </div>
+  </section>
 
-  <div class="card-grid">
-    <div class="card">
-      <h3>Formation Convergence</h3>
-      <p>Aggregate formation error E(t) decays asymptotically under consensus. Bounded spikes during wind gusts recover smoothly.</p>
+  <section class="teaser-card" id="3d-teaser" data-section="3d-teaser">
+    <img src="assets/images/teaser_3d.jpg" alt="3D swarm simulation screenshot" class="teaser-img" onerror="this.style.display='none'" loading="lazy">
+    <div class="teaser-text">
+      <h3>3D Formation Flight &amp; Obstacle Negotiation</h3>
+      <p>Decentralized formation control of seven quadcopters flying a 3D DCM heading-aligned wedge through 15 spherical debris obstacles. LQR optimal control drives state feedback, graph Laplacian consensus maintains formation cohesion, and the Dryden turbulence model injects realistic wind gusts. The interactive Three.js viewer provides orbit controls, playback timeline, and per-drone neon trail visualization.</p>
+      <a href="simulation.html" class="teaser-link">Launch Interactive Viewer &rarr;</a>
     </div>
-    <div class="card">
-      <h3>Actuator Saturation</h3>
-      <p>Control effort u(t) respects per-axis thrust limits. LQR gains tuned for operation within T_max = 15N.</p>
-    </div>
-    <div class="card">
-      <h3>Graph Connectivity</h3>
-      <p>Algebraic connectivity lambda_2(L) monitored in real-time. Communication topology remains connected throughout.</p>
-    </div>
-    <div class="card">
-      <h3>Wind Gust Rejection</h3>
-      <p>Dryden PSD-shaped turbulence (sigma=2 m/s). Consensus drives neighbors to compensate for displaced agents.</p>
-    </div>
-  </div>
+  </section>
 
   <hr class="divider">
-
-  <h2>GNC Portfolio Value</h2>
-
-  <p>This project demonstrates engineering competencies directly relevant to Guidance, Navigation, and Control roles:</p>
-
-  <ul>
-    <li><strong>Multi-agent control theory</strong> - decentralized consensus via graph Laplacian, algebraic connectivity analysis</li>
-    <li><strong>Optimal control synthesis</strong> - LQR via continuous-time algebraic Riccati equation (CARE)</li>
-    <li><strong>Obstacle avoidance</strong> - analytic potential field gradients with guaranteed collision-free navigation</li>
-    <li><strong>Flight dynamics</strong> - 6-DOF state-space modeling with aerodynamic damping and thrust saturation</li>
-    <li><strong>Stochastic disturbances</strong> - Dryden wind turbulence model with PSD-shaped colored noise</li>
-    <li><strong>3D DCM formation rotation</strong> - heading-aligned wedge rotation via Direction Cosine Matrix</li>
-    <li><strong>Web-based visualization</strong> - Matplotlib 3D animation with telemetry charts</li>
-  </ul>
 
 </div>
 
 <footer class="site-footer">
-  <p>UAV Swarm Coordination - Python + Matplotlib + Plotly - Military Terminal Theme</p>
+  <p>UAV Swarm Coordination - Python + Matplotlib + Three.js - Military Terminal Theme</p>
 </footer>
 
 <script>
+// Scrollspy
+const sections = document.querySelectorAll('[data-section]');
+const navLinks = document.querySelectorAll('.nav-item[data-section]');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.nav-item[data-section="${entry.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-80px 0px -60% 0px' });
+sections.forEach(s => observer.observe(s));
+
+// Sidebar toggle
 document.getElementById('sidebarToggle')?.addEventListener('click', function() {
   document.querySelector('.sidebar').classList.toggle('open');
 });

@@ -19,16 +19,16 @@ uv run python -m http.server -d docs 8765    # Preview site
 
 - **Python engine**: 6-DOF state-space dynamics, LQR via CARE, 3D DCM heading-aligned guidance, 3D APF sphere avoidance, Dryden wind turbulence
 - **Web viewer (3D)**: Three.js interactive viewport with Tron/mecha aesthetic -- emissive cubes, heading cones, CSS2DRenderer neon drone labels, UnrealBloomPass post-processing, vertex-color gradient trails, starfield, auto-orbit on pause
-- **Web viewer (2D)**: Plotly.js gain sweep overlay, force breakdown (stacked area), speed profile, MC stress sensitivity grid, layout difficulty bar chart, faceted 2x3 trajectory comparison
+- **Web viewer (2D)**: Canvas-based interactive player with selectable k_avoid gain, play/pause/slider controls, gradient trail, force vector arrows, real-time APF potential field (cool blue/purple/red nebula glow), Tron neon aesthetic
 - **Telemetry (3D)**: Plotly.js metrics panels for formation error, algebraic connectivity &lambda;<sub>2</sub>, max control effort, and obstacle proximity events
+- **Analysis suite (2D)**: Plotly.js gain sweep overlay, faceted trajectory grid, clearance trade-study heatmap, speed profile, speed-space phase portrait, gate performance dashboard, gain bifurcation, parameter space design envelope
 
 ## Pages
 
-- **Overview** - Project summary, validation metrics, GNC portfolio value
+- **Overview** - Project summary with 2D and 3D teaser cards, hierarchical sidebar with scrollspy navigation
 - **Theory & Math** - KaTeX equations for state-space, LQR, 3D DCM, APF, Laplacian, Lyapunov, Dryden
 - **3D Simulation** - Three.js interactive viewer + Plotly metric panels (formation error, &lambda;<sub>2</sub>, control effort, proximity)
-- **2D Path Planning** - 2D APF corridor analysis: gain sweep overlay, MC stats, stress sensitivity heatmap, force breakdown, layout difficulty
-- **Methodology** - Algorithm deep dive: 3D DCM math, consensus, 3D APF spherical distance functions
+- **2D Path Planning** - Interactive canvas player + full Plotly analysis suite: gain sweep, faceted comparison, clearance/speed analysis, gate dashboard, bifurcation, parameter space envelope
 - **Implementation** - Code architecture, GitHub repo link
 
 ## Key Results
@@ -39,6 +39,7 @@ uv run python -m http.server -d docs 8765    # Preview site
 - Formation error converges asymptotically and recovers after wind gusts (sigma=2 m/s) and obstacle negotiation
 - Control effort respects physical saturation limits (T_max = 15N per axis)
 - 2D MC sensitivity analysis reveals failure modes at extreme parameter combinations (k_avoid > 6, rho0 < 1.0)
+- Interactive 2D player analyzes 10 gain values showing four distinct behavioral regimes: corner-cutting, stall, optimal slalom, pushback
 
 ## GNC Competencies Demonstrated
 
@@ -49,4 +50,4 @@ uv run python -m http.server -d docs 8765    # Preview site
 - Dryden wind turbulence modeling
 - 6-DOF state-space flight dynamics
 - Monte Carlo parameter sensitivity analysis
-- Interactive 3D visualization (Three.js) and telemetry analytics (Plotly)
+- Interactive 3D visualization (Three.js) and 2D canvas rendering with telemetry analytics (Plotly)

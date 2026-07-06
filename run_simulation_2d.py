@@ -275,7 +275,7 @@ def main():
     for ka in gain_vals:
         frames, collided, coll_time = simulate_2d(obstacles, ka, rho0=3.5)
         gain_sweep[str(ka)] = {
-            "frames": [{"t": f["t"], "pos": f["pos"], "speed": f["speed"]} for f in frames],
+            "frames": frames,
             "success": not collided,
             "collision_time": coll_time,
         }
