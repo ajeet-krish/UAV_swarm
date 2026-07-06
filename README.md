@@ -1,6 +1,6 @@
-# Distributed UAV Swarm Coordination in 3D Orbital Debris Field
+# SwarmGNC: Decentralized UAV Formation Control
 
-Decentralized multi-agent swarm simulation with 3D Direction Cosine Matrix (DCM) heading-aligned consensus, LQR optimal control, and 3D Artificial Potential Field (APF) guidance. Seven autonomous quadcopters navigate a fixed 3D cube space populated with 15 spherical floating asteroids/debris obstacles.
+Decentralized multi-agent swarm simulation with 3D Direction Cosine Matrix (DCM) heading-aligned consensus, LQR optimal control, and Artificial Potential Field (APF) guidance. Seven autonomous quadcopters navigate a fixed 3D cube space populated with 15 spherical floating asteroids. An accompanying 2D planar slalom corridor isolates APF path planning for systematic gain characterization and Monte Carlo safety analysis.
 
 ## Quick Start
 
@@ -11,6 +11,7 @@ uv run python src/viz/animate_3d.py          # Render 3D MP4 with camera orbit (
 uv run python src/viz/animate_2d.py          # Render 2D animated GIFs (~30s)
 uv run python run_simulation_2d.py           # Run 2D APF sim + export JSON (~20s)
 uv run python src/viz/animate_2d_sim.py       # Render 2D APF MP4 (~15s)
+uv run python src/viz/plot_2d_facets.py       # Regenerate faceted trajectory PNG
 uv run python -m http.server -d docs 8765    # Preview site
 # Open http://localhost:8765
 ```
@@ -19,17 +20,17 @@ uv run python -m http.server -d docs 8765    # Preview site
 
 - **Python engine**: 6-DOF state-space dynamics, LQR via CARE, 3D DCM heading-aligned guidance, 3D APF sphere avoidance, Dryden wind turbulence
 - **Web viewer (3D)**: Three.js interactive viewport with Tron/mecha aesthetic -- emissive cubes, heading cones, CSS2DRenderer neon drone labels, UnrealBloomPass post-processing, vertex-color gradient trails, starfield, auto-orbit on pause
-- **Web viewer (2D)**: Canvas-based interactive player with selectable k_avoid gain, play/pause/slider controls, gradient trail, force vector arrows, real-time APF potential field (cool blue/purple/red nebula glow), Tron neon aesthetic
+- **Web viewer (2D)**: Canvas-based interactive player with selectable k_avoid gain, play/pause/slider controls, gradient trail, directional force vector arrows (F_att, F_rep, F_wall), Tron neon aesthetic. Full-width layout with 3:1 corridor aspect ratio
 - **Telemetry (3D)**: Plotly.js metrics panels for formation error, algebraic connectivity &lambda;<sub>2</sub>, max control effort, and obstacle proximity events
 - **Analysis suite (2D)**: Plotly.js gain sweep overlay, faceted trajectory grid, clearance trade-study heatmap, speed profile, speed-space phase portrait, gate performance dashboard, gain bifurcation, parameter space design envelope
 
 ## Pages
 
-- **Overview** - Project summary with 2D and 3D teaser cards, hierarchical sidebar with scrollspy navigation
-- **Theory & Math** - KaTeX equations for state-space, LQR, 3D DCM, APF, Laplacian, Lyapunov, Dryden
-- **3D Simulation** - Three.js interactive viewer + Plotly metric panels (formation error, &lambda;<sub>2</sub>, control effort, proximity)
+- **Home** - Project summary with intro paragraph explaining 2D/3D approach, screenshot teaser cards, scrollspy sidebar navigation, collapsible sidebar
 - **2D Path Planning** - Interactive canvas player + full Plotly analysis suite: gain sweep, faceted comparison, clearance/speed analysis, gate dashboard, bifurcation, parameter space envelope
-- **Implementation** - Code architecture, GitHub repo link
+- **3D Swarm** - Three.js interactive viewer + Plotly metric panels (formation error, &lambda;<sub>2</sub>, control effort, proximity)
+- **Theory & Methodology** - KaTeX equations for state-space, LQR, 3D DCM, APF, Laplacian, Lyapunov, Dryden
+- **Implementation** - Code architecture, module reference, source blocks
 
 ## Key Results
 

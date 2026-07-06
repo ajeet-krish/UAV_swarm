@@ -25,3 +25,8 @@ wheels/
 
 # Generated images (PNG analysis charts)
 docs/assets/images/*.png
+# Exceptions: tracked PNG assets for GitHub Pages
+!docs/assets/images/trajectory_facets.png
+!docs/assets/images/teaser_2d.png
+!docs/assets/images/teaser_3d.png
+AGENTS.md

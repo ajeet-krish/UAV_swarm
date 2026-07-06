@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Distributed UAV Swarm Coordination with decentralized consensus, APF guidance, and LQR optimal control">
-  <title>UAV Swarm Coordination</title>
+  <meta name="description" content="SwarmGNC: Decentralized UAV Formation Control with consensus, APF guidance, and LQR optimal control">
+  <title>SwarmGNC: Decentralized UAV Formation Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,19 +15,17 @@
 <button class="sidebar-toggle" id="sidebarToggle">&#9776;</button>
 
 <div class="sidebar">
-  <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
+  <div class="sidebar-brand"><a href="index.html">SwarmGNC</a></div>
   <nav class="sidebar-nav">
     <div class="nav-section">
       <div class="nav-heading">Project</div>
-      <a href="#overview" class="nav-item active" data-section="overview">Overview</a>
+      <a href="#overview" class="nav-item active" data-section="overview">Home</a>
       <a href="2d-simulation.html" class="nav-item" data-section="2d-teaser">2D Path Planning</a>
-      <div class="nav-subheading">Video / Sweep / Gates / Safety</div>
-      <a href="simulation.html" class="nav-item" data-section="3d-teaser">3D Swarm Simulation</a>
-      <div class="nav-subheading">Viewer / Metrics / Obstacles</div>
+      <a href="simulation.html" class="nav-item" data-section="3d-teaser">3D Swarm</a>
     </div>
     <div class="nav-section">
       <div class="nav-heading">Reference</div>
-      <a href="theory.html" class="nav-item">Theory &amp; Methods</a>
+      <a href="theory.html" class="nav-item">Theory &amp; Methodology</a>
       <a href="implementation.html" class="nav-item">Implementation</a>
     </div>
   </nav>
@@ -36,7 +34,7 @@
 <div class="main-content">
 
   <section class="hero" id="overview" data-section="overview">
-    <h1>Distributed UAV Swarm Coordination</h1>
+    <h1>SwarmGNC: Decentralized UAV Formation Control</h1>
     <p class="subtitle">
       Decentralized consensus formation control with Artificial Potential Fields,
       LQR-optimal state feedback, and Dryden wind gust rejection.
@@ -48,31 +46,38 @@
     </div>
   </section>
 
-  <div class="stats">
-    <div class="stat"><span class="num">7</span><span class="lbl">Autonomous Drones</span></div>
-    <div class="stat"><span class="num">6-DOF</span><span class="lbl">State Space per Agent</span></div>
-    <div class="stat"><span class="num">LQR</span><span class="lbl">Optimal Control</span></div>
-    <div class="stat"><span class="num">APF</span><span class="lbl">Obstacle Guidance</span></div>
-    <div class="stat"><span class="num">15</span><span class="lbl">Debris Obstacles</span></div>
-    <div class="stat"><span class="num">90s</span><span class="lbl">Simulation Run</span></div>
-  </div>
+  <hr class="divider">
+
+  <p class="section-intro">
+    This project takes a two-pronged approach to swarm guidance, navigation, and control (GNC) analysis.
+    The <strong>2D corridor simulation</strong> isolates APF path planning in a controlled planar environment,
+    enabling systematic gain characterization, clearance trade-off studies, and Monte Carlo safety analysis
+    across a full parameter space. The <strong>3D simulation</strong> extends to full formation flight with
+    cooperative graph Laplacian consensus, LQR optimal control via the continuous algebraic Riccati equation,
+    Dryden wind turbulence rejection, and multi-obstacle negotiation through a realistic debris field.
+    Together, these tools validate core GNC concepts from individual agent guidance to multi-agent
+    coordination&#8212;directly transferable to real-world autonomous swarms for search-and-rescue,
+    environmental monitoring, precision agriculture, and orbital debris management missions.
+  </p>
 
   <hr class="divider">
 
   <section class="teaser-card" id="2d-teaser" data-section="2d-teaser">
-    <img src="assets/images/teaser_2d.jpg" alt="2D slalom corridor layout" class="teaser-img" loading="lazy">
+    <img src="assets/images/teaser_2d.png" alt="2D slalom corridor layout" class="teaser-img" loading="lazy">
     <div class="teaser-text">
       <h3>2D APF Slalom Path Planning</h3>
-      <p>APF-based navigation through a dense 15-obstacle slalom corridor. Ten gain values from 0.05 to 10 reveal four distinct behavioral regimes: corner-cutting at low gain, local equilibrium stall at intermediate gain, optimal slalom at k_a = 4, and saturating repulsion at high gain. The full analysis includes gain sweep overlay, faceted comparison, clearance trade-study heatmap, gate performance dashboard, speed-space phase portrait, and Monte Carlo safety envelope.</p>
+      <p>Isolates APF path planning in a planar corridor to characterize gain-dependent behavior,
+      clearance trade-offs, and safety margins across a full parameter space.</p>
       <a href="2d-simulation.html" class="teaser-link">View Full Analysis &rarr;</a>
     </div>
   </section>
 
   <section class="teaser-card" id="3d-teaser" data-section="3d-teaser">
-    <img src="assets/images/teaser_3d.jpg" alt="3D swarm simulation screenshot" class="teaser-img" onerror="this.style.display='none'" loading="lazy">
+    <img src="assets/images/teaser_3d.png" alt="3D swarm simulation screenshot" class="teaser-img" onerror="this.style.display='none'" loading="lazy">
     <div class="teaser-text">
       <h3>3D Formation Flight &amp; Obstacle Negotiation</h3>
-      <p>Decentralized formation control of seven quadcopters flying a 3D DCM heading-aligned wedge through 15 spherical debris obstacles. LQR optimal control drives state feedback, graph Laplacian consensus maintains formation cohesion, and the Dryden turbulence model injects realistic wind gusts. The interactive Three.js viewer provides orbit controls, playback timeline, and per-drone neon trail visualization.</p>
+      <p>Extends to full formation flight with graph Laplacian consensus, LQR state feedback, Dryden
+      wind rejection, and multi-obstacle negotiation through a realistic orbital debris field.</p>
       <a href="simulation.html" class="teaser-link">Launch Interactive Viewer &rarr;</a>
     </div>
   </section>
@@ -82,7 +87,7 @@
 </div>
 
 <footer class="site-footer">
-  <p>UAV Swarm Coordination - Python + Matplotlib + Three.js - Military Terminal Theme</p>
+  <p>SwarmGNC &middot; Built by Ajeet Krishnasamy &middot; <a href="https://github.com/ajeet-krish/UAV_swarm" target="_blank">GitHub</a> &middot; <a href="https://www.linkedin.com/in/ajeetkrishnasamy/" target="_blank">LinkedIn</a></p>
 </footer>
 
 <script>
@@ -103,6 +108,7 @@ sections.forEach(s => observer.observe(s));
 // Sidebar toggle
 document.getElementById('sidebarToggle')?.addEventListener('click', function() {
   document.querySelector('.sidebar').classList.toggle('open');
+  document.body.classList.toggle('sidebar-open');
 });
 </script>
 

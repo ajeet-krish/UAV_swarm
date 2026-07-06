@@ -12,20 +12,19 @@ var K_WALL = 3.0;
 var WALL_MARGIN = 2.0;
 var RHO0 = 3.5;
 var TRAIL_LEN = 150;
-var GRID_RES = 4;
 
 var state = {
   data: null, meta: null, gainKey: '4', gainFrames: null,
   currentFrame: 0, totalFrames: 1500, isPlaying: false,
   playInterval: null, speed: 1, trail: [],
-  showForces: true, showField: true, showTrail: true, showRadii: false,
+  showForces: true, showTrail: true, showRadii: false,
   dirty: true,
-  fieldCache: null, fieldGrid: null,
 };
 
 var container, canvas, ctx, width, height, dpr = 1;
-var padding = 20, scale = 1;
+var padding = 8, scale = 1;
 var gainChips = {}, playBtn, slider, timeLabel;
+var speedBtns = [];
 
 function hexToRgb(h) {
   var r = parseInt(h.slice(1,3), 16);
@@ -52,15 +51,16 @@ function markDirty() { state.dirty = true; }
 function resize() {
   var rect = container.getBoundingClientRect();
   dpr = window.devicePixelRatio || 1;
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
-  canvas.style.width = rect.width + 'px';
-  canvas.style.height = rect.height + 'px';
+  var w = Math.round(rect.width);
+  var h = Math.round(rect.height);
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  width = rect.width;
-  height = rect.height;
+  width = w;
+  height = h;
   computeScale();
-  state.fieldCache = null;
   markDirty();
 }
 
@@ -72,150 +72,34 @@ function updateFrame(fi) {
   for (var i = start; i <= fi; i++) {
     state.trail.push(state.gainFrames[i].pos);
   }
-  if (state.showField) queueFieldCompute();
+  
   var t = state.gainFrames[fi].t;
   var totalT = state.totalFrames * 0.02;
   if (timeLabel) timeLabel.textContent = t.toFixed(1) + 's / ' + totalT.toFixed(1) + 's';
   markDirty();
-}
-
-function queueFieldCompute() {
-  state.fieldCache = null;
-}
-
-function computePotential(x, y, obstacles) {
-  var dx, dy, d, rho, mag;
-  var total = 0;
-  var ka = parseFloat(state.gainKey);
-  for (var i = 0; i < obstacles.length; i++) {
-    var o = obstacles[i];
-    dx = x - o.center[0];
-    dy = y - o.center[1];
-    d = Math.sqrt(dx * dx + dy * dy);
-    rho = Math.max(d - o.radius, 0.05);
-    if (rho < RHO0) {
-      mag = 1.0 / rho - 1.0 / RHO0;
-      total += ka * mag * mag;
-    }
-  }
-  return total;
-}
-
-function computeField() {
-  if (!state.showField) return;
-  var obstacles = state.meta.obstacles;
-  var gw = Math.ceil(width / GRID_RES);
-  var gh = Math.ceil(height / GRID_RES);
-  var grid = new Float32Array(gw * gh);
-  var maxVal = 0;
-
-  for (var gy = 0; gy < gh; gy++) {
-    for (var gx = 0; gx < gw; gx++) {
-      var cx = gx * GRID_RES + GRID_RES / 2;
-      var cy = gy * GRID_RES + GRID_RES / 2;
-      var wx = toWorldX(cx), wy = toWorldY(cy);
-      if (wx < X_MIN || wx > X_MAX || wy < Y_MIN || wy > Y_MAX) {
-        grid[gy * gw + gx] = -1;
-        continue;
-      }
-      var v = computePotential(wx, wy, obstacles);
-      grid[gy * gw + gx] = v;
-      if (v > maxVal) maxVal = v;
-    }
   }
 
-  var offscreen = document.createElement('canvas');
-  offscreen.width = gw;
-  offscreen.height = gh;
-  var octx = offscreen.getContext('2d');
-  var imgData = octx.createImageData(gw, gh);
-  var data = imgData.data;
-
-  for (var py = 0; py < gh; py++) {
-    for (var px = 0; px < gw; px++) {
-      var idx = (py * gw + px) * 4;
-      var v = grid[py * gw + px];
-      if (v < 0) {
-        data[idx] = 10; data[idx+1] = 14; data[idx+2] = 20; data[idx+3] = 0;
-        continue;
-      }
-      var n = maxVal > 0 ? Math.min(v / maxVal, 1) : 0;
-      if (n < 0.02) {
-        data[idx] = 10; data[idx+1] = 14; data[idx+2] = 20; data[idx+3] = 0;
-      } else {
-        var r, g, b, a;
-        if (n < 0.15) {
-          var t = n / 0.15;
-          r = Math.round(0);
-          g = Math.round(40 + t * 40);
-          b = Math.round(120 + t * 80);
-          a = Math.round(t * 40);
-        } else if (n < 0.35) {
-          var t = (n - 0.15) / 0.2;
-          r = Math.round(40 * t);
-          g = Math.round(80 - t * 60);
-          b = Math.round(200 - t * 60);
-          a = Math.round(40 + t * 50);
-        } else if (n < 0.6) {
-          var t = (n - 0.35) / 0.25;
-          r = Math.round(40 + t * 120);
-          g = Math.round(20 - t * 20);
-          b = Math.round(140 - t * 60);
-          a = Math.round(90 + t * 50);
-        } else {
-          var t = (n - 0.6) / 0.4;
-          r = Math.round(160 + t * 95);
-          g = Math.round(0);
-          b = Math.round(80 - t * 40);
-          a = Math.round(140 + t * 60);
-        }
-        data[idx] = Math.min(r, 255);
-        data[idx+1] = Math.max(g, 0);
-        data[idx+2] = Math.max(b, 0);
-        data[idx+3] = Math.min(a, 200);
-      }
-    }
+  function drawCorridor() {
   }
-
-  octx.putImageData(imgData, 0, 0);
-  state.fieldCache = offscreen;
-  state.fieldGrid = { w: gw, h: gh };
-}
-
-function drawField() {
-  if (!state.showField || !state.fieldCache) return;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(state.fieldCache, 0, 0, width, height);
-  ctx.imageSmoothingEnabled = true;
-}
-
-function drawCorridor() {
-  ctx.setLineDash([6, 4]);
-  ctx.strokeStyle = 'rgba(210,153,34,0.6)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(toCanvasX(X_MIN), toCanvasY(Y_MAX));
-  ctx.lineTo(toCanvasX(X_MAX), toCanvasY(Y_MAX));
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(toCanvasX(X_MIN), toCanvasY(Y_MIN));
-  ctx.lineTo(toCanvasX(X_MAX), toCanvasY(Y_MIN));
-  ctx.stroke();
-  ctx.setLineDash([]);
-}
 
 function drawGates() {
   var gates = [-7, -2, 3, 8];
   var labels = ['G1','G2','G3','G4'];
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 0.8;
   for (var i = 0; i < gates.length; i++) {
     var cx = toCanvasX(gates[i]);
-    ctx.fillStyle = 'rgba(210,153,34,0.05)';
-    ctx.fillRect(cx - 20 * scale, 0, 40 * scale, height);
-    ctx.fillStyle = 'rgba(210,153,34,0.5)';
+    ctx.strokeStyle = 'rgba(88,166,255,0.5)';
+    ctx.beginPath();
+    ctx.moveTo(cx, 0);
+    ctx.lineTo(cx, height);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(88,166,255,0.8)';
     ctx.font = Math.min(10, scale * 0.3) + 'px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(labels[i], cx, 12);
   }
+  ctx.setLineDash([]);
 }
 
 function drawObstacles() {
@@ -261,12 +145,12 @@ function drawRadii() {
 function drawStartGoal() {
   var sx = toCanvasX(-12), sy = toCanvasY(0);
   var gx = toCanvasX(12), gy = toCanvasY(0);
-  var s = Math.max(6, scale * 0.2);
+  var s = Math.max(12, scale * 0.4);
   ctx.fillStyle = '#3fb950';
   ctx.fillRect(sx - s/2, sy - s/2, s, s);
   ctx.fillRect(gx - s/2, gy - s/2, s, s);
   ctx.fillStyle = 'rgba(63,185,80,0.6)';
-  ctx.font = Math.min(8, scale * 0.25) + 'px JetBrains Mono, monospace';
+  ctx.font = Math.min(14, scale * 0.5) + 'px JetBrains Mono, monospace';
   ctx.textAlign = 'center';
   ctx.fillText('Start', sx, sy - s - 4);
   ctx.fillText('Goal', gx, gy - s - 4);
@@ -340,21 +224,41 @@ function drawForceVectors() {
   var frame = state.gainFrames[state.currentFrame];
   if (!frame) return;
   var cx = toCanvasX(frame.pos[0]), cy = toCanvasY(frame.pos[1]);
-  var maxF = Math.max(frame.F_att, frame.F_rep, frame.F_wall, 0.01);
+  var MAX_F = 10;
+
+  // F_att direction: from drone toward goal (12, 0)
+  var att_dx = 12 - frame.pos[0];
+  var att_dy = 0 - frame.pos[1];
+  var att_d = Math.sqrt(att_dx * att_dx + att_dy * att_dy);
+  var att_ux = att_d > 0.01 ? att_dx / att_d : 0;
+  var att_uy = att_d > 0.01 ? att_dy / att_d : 0;
+
+  // F_rep direction: from nearest obstacle center toward drone
+  var obs = state.meta.obstacles;
+  var minD = Infinity, rep_ux = 0, rep_uy = 0;
+  for (var i = 0; i < obs.length; i++) {
+    var odx = frame.pos[0] - obs[i].center[0];
+    var ody = frame.pos[1] - obs[i].center[1];
+    var od = Math.sqrt(odx * odx + ody * ody);
+    if (od < minD) { minD = od; rep_ux = odx / od; rep_uy = ody / od; }
+  }
+
+  // F_wall direction: toward nearest corridor boundary
+  var wall_ux = 0, wall_uy = frame.pos[1] < 0 ? 1 : -1;
 
   var forces = [
-    { mag: frame.F_att, color: '#3fb950', label: 'F_att' },
-    { mag: frame.F_rep, color: '#f85149', label: 'F_rep' },
-    { mag: frame.F_wall, color: '#d29922', label: 'F_wall' },
+    { mag: frame.F_att, ux: att_ux, uy: att_uy, color: '#3fb950' },
+    { mag: frame.F_rep, ux: rep_ux, uy: rep_uy, color: '#f85149' },
+    { mag: frame.F_wall, ux: wall_ux, uy: wall_uy, color: '#d29922' },
   ];
 
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1.5;
   for (var i = 0; i < forces.length; i++) {
     if (forces[i].mag < 0.01) continue;
-    var len = Math.max(4, (forces[i].mag / maxF) * 60);
-    var dir = [0, (i === 0 ? -1 : 1)];
-    var ex = cx + dir[0] * len * 3;
-    var ey = cy + dir[1] * len;
+    if (forces[i].ux === 0 && forces[i].uy === 0) continue;
+    var len = Math.max(4, Math.min((forces[i].mag / MAX_F) * 60, 60));
+    var ex = cx + forces[i].ux * len;
+    var ey = cy + forces[i].uy * len;
 
     ctx.beginPath();
     ctx.moveTo(cx, cy);
@@ -363,7 +267,7 @@ function drawForceVectors() {
     ctx.stroke();
 
     var asz = 5;
-    var ang = Math.atan2(ey - cy, ex - cx);
+    var ang = Math.atan2(forces[i].uy, forces[i].ux);
     ctx.beginPath();
     ctx.moveTo(ex, ey);
     ctx.lineTo(ex - asz * Math.cos(ang - 0.5), ey - asz * Math.sin(ang - 0.5));
@@ -384,30 +288,28 @@ function drawHUD() {
   var ka = state.gainKey;
 
   var lines = [
-    '> t = ' + t.toFixed(1) + 's / ' + totalT.toFixed(1) + 's',
-    '> pos = (' + px.toFixed(1) + ', ' + py.toFixed(1) + ') m',
-    '> speed = ' + spd.toFixed(2) + ' m/s',
-    '> k_avoid = ' + ka,
+    't = ' + t.toFixed(1) + 's / ' + totalT.toFixed(1) + 's',
+    'pos = (' + px.toFixed(1) + ', ' + py.toFixed(1) + ') m',
+    'speed = ' + spd.toFixed(2) + ' m/s',
+    'k_avoid = ' + ka,
   ];
 
   if (state.showForces) {
-    lines.push('> F_att = ' + frame.F_att.toFixed(2) + '  F_rep = ' + frame.F_rep.toFixed(2) + '  F_wall = ' + frame.F_wall.toFixed(2));
+    lines.push('F_att = ' + frame.F_att.toFixed(2) + '  F_rep = ' + frame.F_rep.toFixed(2) + '  F_wall = ' + frame.F_wall.toFixed(2));
   }
 
-  ctx.font = '11px JetBrains Mono, monospace';
+  ctx.font = '12px JetBrains Mono, monospace';
   ctx.textBaseline = 'top';
+  ctx.textAlign = 'start';
   for (var i = 0; i < lines.length; i++) {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(6, height - 16 * (lines.length - i) - 4, ctx.measureText(lines[i]).width + 12, 16);
     ctx.fillStyle = '#39d353';
-    ctx.fillText(lines[i], 12, height - 16 * (lines.length - i));
+    ctx.fillText(lines[i], 0, height - 16 * (lines.length - i));
   }
 }
 
 function renderFrame() {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, width, height);
-  drawField();
   drawCorridor();
   drawGates();
   drawObstacles();
@@ -420,9 +322,6 @@ function renderFrame() {
 }
 
 function render() {
-  if (state.fieldCache === null && state.showField) {
-    computeField();
-  }
   renderFrame();
 }
 
@@ -441,7 +340,6 @@ function gainSelect(key) {
   state.totalFrames = state.gainFrames.length;
   state.currentFrame = 0;
   state.trail = [];
-  state.fieldCache = null;
 
   slider.max = state.totalFrames - 1;
   slider.value = 0;
@@ -482,12 +380,18 @@ function togglePlay() {
       }
       slider.value = next;
       updateFrame(next);
-    }, 60 / state.speed);
+    }, 20 / state.speed);
   }
 }
 
 function setSpeed(s) {
   state.speed = s;
+  for (var i = 0; i < speedBtns.length; i++) {
+    var btn = speedBtns[i];
+    var spd = parseInt(btn.textContent);
+    btn.style.border = '1px solid ' + (spd === s ? '#3fb950' : '#21262d');
+    btn.style.color = spd === s ? '#3fb950' : '#8b949e';
+  }
   if (state.isPlaying) {
     clearInterval(state.playInterval);
     state.isPlaying = false;
@@ -543,6 +447,7 @@ function buildControls() {
   row1.appendChild(timeLabel);
 
   var speeds = [1, 2, 4];
+  speedBtns = [];
   for (var si = 0; si < speeds.length; si++) {
     (function(s) {
       var btn = document.createElement('button');
@@ -553,6 +458,7 @@ function buildControls() {
       btn.style.color = s === 1 ? '#3fb950' : '#8b949e';
       btn.onclick = function() { setSpeed(s); };
       row1.appendChild(btn);
+      speedBtns.push(btn);
     })(speeds[si]);
   }
 
@@ -589,7 +495,6 @@ function buildControls() {
 
   var toggles = [
     { key: 'showForces', label: 'Force Vectors' },
-    { key: 'showField', label: 'Potential Field' },
     { key: 'showTrail', label: 'Trail' },
     { key: 'showRadii', label: 'Influence Radii' },
   ];
@@ -606,7 +511,6 @@ function buildControls() {
 
       cb.onchange = function() {
         state[t.key] = cb.checked;
-        if (t.key === 'showField') state.fieldCache = null;
         markDirty();
       };
 
@@ -651,6 +555,8 @@ function initPlayer2D(containerId, simData) {
   resize();
   updateFrame(0);
   renderLoop();
+
+  document.fonts.ready.then(function() { markDirty(); });
 
   window.addEventListener('resize', function() {
     resize();

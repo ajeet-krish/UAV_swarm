@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="UAV Swarm - Control Systems Theory and Numerical Methods">
-  <title>Theory &amp; Methodology - UAV Swarm</title>
+  <meta name="description" content="SwarmGNC - Control Systems Theory and Numerical Methods">
+  <title>Theory &amp; Methodology - SwarmGNC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -16,17 +16,17 @@
 <button class="sidebar-toggle" id="sidebarToggle">&#9776;</button>
 
 <div class="sidebar">
-  <div class="sidebar-brand"><a href="index.html">UAV Swarm</a></div>
+  <div class="sidebar-brand"><a href="index.html">SwarmGNC</a></div>
   <nav class="sidebar-nav">
     <div class="nav-section">
       <div class="nav-heading">Project</div>
-      <a href="index.html" class="nav-item">Overview</a>
-      <a href="theory.html" class="nav-item active">Theory &amp; Methods</a>
-      <a href="simulation.html" class="nav-item">3D Simulation</a>
+      <a href="index.html" class="nav-item">Home</a>
       <a href="2d-simulation.html" class="nav-item">2D Path Planning</a>
+      <a href="simulation.html" class="nav-item">3D Swarm</a>
     </div>
     <div class="nav-section">
       <div class="nav-heading">Reference</div>
+      <a href="theory.html" class="nav-item active">Theory &amp; Methodology</a>
       <a href="implementation.html" class="nav-item">Implementation</a>
     </div>
   </nav>
@@ -352,7 +352,7 @@
 </div>
 
 <footer class="site-footer">
-  <p>UAV Swarm Coordination - Theory &amp; Methodology</p>
+  <p>SwarmGNC &middot; Built by Ajeet Krishnasamy &middot; <a href="https://github.com/ajeet-krish/UAV_swarm" target="_blank">GitHub</a> &middot; <a href="https://www.linkedin.com/in/ajeetkrishnasamy/" target="_blank">LinkedIn</a></p>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
@@ -373,6 +373,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <script>
 document.getElementById('sidebarToggle')?.addEventListener('click', function() {
   document.querySelector('.sidebar').classList.toggle('open');
+  document.body.classList.toggle('sidebar-open');
 });
 </script>
 

@@ -1,13 +1,13 @@
-# Project Context - UAV Swarm Coordination
+# Project Context - SwarmGNC
 
 ## Style Rules
-- **No em dashes** in any file in this project. No `---`, no `&mdash;`, no `&ndash;`, no literal Unicode em dash (U+2014).
+- **No em dashes** in any file in this project. No `---`, no `&mdash;`, no `&ndash;`, no literal Unicode em dash (U+2014). Use `&#8211;` (en dash) or `&#8212;` (em dash) entities instead.
 - Use `uv` for all Python dependency management and script execution.
 
 ## Goal
-Build a decentralized multi-agent UAV swarm simulation with APF guidance, LQR optimal control, and graph Laplacian consensus in a 3D orbital debris field. Deliver a military-green-themed multi-page HTML portfolio demonstrating GNC engineering competencies to aerospace hiring managers.
+Build and deploy a decentralized multi-agent UAV swarm simulation portfolio with 2D APF path planning, 3D formation flight visualization, and interactive HTML analysis pages. Deliver a military-green-themed multi-page HTML portfolio demonstrating GNC engineering competencies to aerospace hiring managers.
 
-## Current Status (2026-07-05)
+## Current Status (2026-07-06)
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -29,6 +29,11 @@ Build a decentralized multi-agent UAV swarm simulation with APF guidance, LQR op
 | 16 | Homepage revamp (hero + teaser cards + hierarchical scrollspy sidebar) | ✅ |
 | 17 | Interactive 2D player (canvas-based, gain selector, APF field, Tron neon aesthetic) | ✅ |
 | 18 | Player fixes (space aesthetic background, repulsive-only field, cool colors, blocky obstacle fix) | ✅ |
+| 19 | Visual refinement (gate dashed lines, HUD text repositioning, full-width player, DPR rounding, font loading) | ✅ |
+| 20 | Sidebar cleanup (consistent labels, moved Theory to Reference, removed decorative subheadings, 2D before 3D order) | ✅ |
+| 21 | Player polish (larger start/goal icons/text, force vector rework, speed fix, field overlay removal) | ✅ |
+| 22 | Homepage redesign (removed stats bar, added intro paragraph, shortened teasers) | ✅ |
+| 23 | Rebrand to SwarmGNC (title, sidebar brand, page titles, footer across all pages, collapsible sidebar) | ✅ |
 
 ## File Layout
 
@@ -55,10 +60,11 @@ UAV_swarm/
       animate_3d.py          # Matplotlib 3D -> MP4 animation renderer
       animate_2d.py          # Top-down + side-view animated GIF renderer
       animate_2d_sim.py      # 2D APF corridor MP4 animation renderer
+      plot_2d_facets.py      # Faceted 2D trajectory grid PNG generator
 
   docs/                      # GitHub Pages static site
     .nojekyll
-    index.html               # Landing page: hero + teaser cards + scrollspy sidebar
+    index.html               # Landing page: hero + intro paragraph + teaser cards
     theory.html              # Full KaTeX math (6 sections, Lyapunov proof)
     simulation.html          # Three.js viewer + Plotly metric panels
     2d-simulation.html       # Interactive 2D player + Plotly chart analysis suite
@@ -68,14 +74,15 @@ UAV_swarm/
     assets/
       data/
         swarm_simulation.json  # 15MB, 4500 frames, 90s, 7 drones, 15 obstacles
-        simulation_2d.json     # 4.0MB, 2D APF data (full frame fields for all 10 gains)
+        simulation_2d.json     # 6.7MB, 2D APF data (full frame fields for all 10 gains)
       js/
         three_viewer.js      # Three.js viewer module (bloom, CSS2DRenderer labels, trails)
-        player_2d.js         # Interactive 2D canvas player (gain selector, APF field, playback)
+        player_2d.js         # Interactive 2D canvas player (gain selector, playback, force vectors)
       videos/
         apf_path_2d.mp4      # 1.1MB, 30s, 25fps 2D APF corridor path planning animation
       images/
-        teaser_2d.jpg        # 28KB, screenshot of slalom layout for homepage teaser card
+        teaser_2d.png        # 62KB, screenshot of 2D slalom corridor for homepage teaser card
+        teaser_3d.png        # 205KB, screenshot of 3D swarm viewer for homepage teaser card
         trajectory_facets.png # 233KB, static 3x2 faceted trajectory grid
 ```
 
@@ -126,47 +133,33 @@ Wedge offsets are continuously rotated in 3D relative to the direction of travel
 
 ## Environment
 - Fixed 3D Cube: x, z in [-10, 10], y in [1, 11]
-- 15 spherical asteroids: 6 hand-placed + 9 procedural with hand-tuned adjustments for narrow passages:
-  - Asteroid 1: Center [4.0, 5.0, 3.0], radius 1.5
-  - Asteroid 2: Center [-4.0, 4.0, -3.0], radius 1.8
-  - Asteroid 3: Center [2.0, 8.0, -4.0], radius 1.2
-  - Asteroid 4: Center [-2.0, 7.0, 4.0], radius 1.4
-  - Asteroid 5: Center [5.0, 2.0, -5.0], radius 1.6
-  - Asteroid 6: Center [-5.0, 9.0, 2.0], radius 1.3
-  - Asteroids 7-15: Placed procedurally (seed=42) then hand-adjusted to create narrow corridors, flanking obstacles, and approach obstacles
-- 8 Looping Waypoints (figure-8 with vertical variation):
-  - WP1: [8.0, 9.0, -8.0]      High right
-  - WP2: [8.0, 2.0, 8.0]       Low opposite corner
-  - WP3: [-2.0, 8.0, 6.0]      High center-right gap
-  - WP4: [-8.0, 9.0, 8.0]      High left
-  - WP5: [-3.0, 3.0, -3.0]     Low center-left through obstacles
-  - WP6: [0.0, 5.0, 0.0]       Center pass
-  - WP7: [5.0, 7.0, -5.0]      Mid right figure-8 crossover
-  - WP8: [-8.0, 2.0, -8.0]     Start (loop back)
-
-## Simulation Output (swarm_simulation.json)
-- 4500 frames at dt=0.02s = 90s total
-- Per frame: drone states (pos, vel, u, d_ij), metrics (formation_error, lambda_2, max_control_effort), wind vector
-- File size: ~15 MB
+- 15 spherical asteroids: 6 hand-placed + 9 procedural with hand-tuned adjustments for narrow passages
+- 8 Looping Waypoints (figure-8 with vertical variation)
 
 ## Key Visuals
 
-- **Three.js Interactive 3D**: Drag-to-orbit viewport with OrbitControls. White wireframe+transparent sphere obstacles (15 total), drone markers as emissive cubes with heading cones oriented along velocity, vertex-colored gradient trail lines (60 pts per drone), starfield background with scene fog, auto-rotate camera when paused. Play/pause/slider controls and HUD overlay. Uses importmap (three@0.170.0 from jsdelivr) with no build tooling.
-- **Tron/Mecha Aesthetic**: Rainbow neon DRONE_COLORS (magenta, cyan, orange, lime, electric blue, hot pink, yellow) applied to cubes, heading cones, trail gradients, and CSS2DRenderer labels. UnrealBloomPass (strength=0.6, radius=0.3, threshold=0.5) creates glow on emissive surfaces only. Wireframe EdgesGeometry on each cube. Starfield (3000 pts) with scene fog, Reinhard tone mapping, dim ambient (0.3).
-- **CSS2DRenderer Drone IDs**: Neon `[D0]`-`[D6]` labels float above each drone, styled with the drone's rainbow color and text-shadow glow. Rendered via CSS2DRenderer for crisp text at any zoom.
-- **Plotly Metrics Panels (3D)**: Four single-column panels in simulation.html show formation error, algebraic connectivity lambda_2, max control effort, and obstacle proximity events. Proximity chart samples up to 200 events colored by drone index.
-- **Interactive 2D Player**: Canvas-based playback with neon Tron aesthetic. Selectable k_avoid gain via 10 colored chips, play/pause/slider controls, force vector arrows (F_att green, F_rep red, F_wall amber), speed-colored gradient trail, APF repulsive potential field as a cool blue/purple/red nebula glow overlay, toggle checkboxes for layers.
-- **2D APF Analysis Suite (Plotly)**: Gain sweep overlay (10 gains), faceted 2x3 trajectory grid, clearance per gain scatter, clearance trade-study heatmap, speed profile overlay, speed-space phase portrait, gate performance dashboard (reachability, crossing speed, zone clearance, transit time), gain bifurcation chart, parameter space design envelope (deterministic + MC stress), results table.
+- **Three.js Interactive 3D**: White wireframe+transparent sphere obstacles (15 total), drone markers as emissive cubes with heading cones, vertex-colored gradient trail lines, starfield background, auto-rotate. Uses importmap from jsdelivr, no build tooling.
+- **Tron/Mecha Aesthetic**: Rainbow neon DRONE_COLORS. UnrealBloomPass (strength=0.6, radius=0.3, threshold=0.5). Wireframe EdgesGeometry. CSS2DRenderer neon `[D0]`-`[D6]` labels. Reinhard tone mapping, dim ambient (0.3).
+- **CSS2DRenderer Drone IDs**: Neon labels float above each drone with text-shadow glow.
+- **Plotly Metrics (3D)**: Four panels showing formation error, lambda_2, max control effort, obstacle proximity.
+- **Interactive 2D Player**: Full-width canvas player at 3:1 corridor aspect ratio. Neon gain selector chips (10 colors), play/pause/slider, directional force vectors (F_att green, F_rep red, F_wall amber), speed-controlled playback, speed-colored gradient trail, terminal HUD overlay (no background).
+- **2D APF Analysis Suite (Plotly)**: Gain sweep overlay, faceted 2x3 trajectory grid, clearance heatmap, speed profile, speed-space phase portrait, gate dashboard, bifurcation chart, parameter space envelope.
 
-## Recent Changes (2026-07-05)
+## Recent Changes (2026-07-06)
 
 | Change | Details |
 |--------|---------|
-| Homepage revamp | index.html: replaced full content with hero + 2D teaser card (screenshot + text) + 3D teaser card (text + placeholder) + stats bar. Added hierarchical sidebar with scrollspy IntersectionObserver. Removed old card grid, validation metrics, GNC value list. |
-| 2D interactive player | player_2d.js (new, 671 lines): canvas-based interactive simulation viewer. Gain selector chips (10 neon colors), play/pause/slider, speed buttons, 4 toggle checkboxes. Drone rendered as oriented triangle with shadowBlur glow. Gradient trail. Force vector arrows. Real-time APF repulsive potential field. Terminal HUD overlay. |
-| Full frame data export | run_simulation_2d.py: gain_sweep now stores all frame fields (vel, F_att, F_rep, F_wall, dist_to_goal) instead of only t/pos/speed. simulation_2d.json grew from 3.2MB to 4.0MB. |
-| Player visual fixes | Space aesthetic: dark background fill, repulsive-only APF field with cool blue/purple/red nebula gradient, solid obstacle base to hide blocky field underneath, GRID_RES 8->4 for smoother field rendering. |
-| Page cleanup | Removed methodology.html (content folded into theory + simulation pages). Removed swarm_3d.mp4, top_down.gif, side_view.gif (generated on demand). Updated sidebar nav across all pages. |
+| Full-width player | Removed max-width constraint on 2D page; player fills viewport width with 3:1 aspect ratio. Corridor scales up proportionally with no empty space. |
+| Resolution & font | Canvas dimensions rounded to integer pixels. Font increased to 13px. `document.fonts.ready` re-render for JetBrains Mono load. HUD text moved to x=32 with no background box. |
+| Gate visuals | Replaced amber gate-fill overlays with vertical dashed lines at G1-G4. |
+| Padding reduced | Canvas padding from 20 to 8 for more effective corridor area. |
+| Sidebar cleanup | Consistent labels across all 5 pages: Home, 2D Path Planning, 3D Swarm in Project; Theory & Methodology, Implementation in Reference. Moved Theory out of Project into Reference. Removed decorative subheadings from homepage sidebar. 2D Path Planning ordered before 3D Swarm. |
+| File cleanup | Removed `.mypy_cache/` and `__pycache__/` directories. Un-ignored `trajectory_facets.png` in `.gitignore` (needed by 2D page). |
+| Start/goal icons | Doubled size of start/goal squares (min 6->12, scale multiplier 0.2->0.4) and font (min 8->14, scale multiplier 0.25->0.5) in player_2d.js. |
+| Homepage redesign | Removed stats bar. Added intro paragraph explaining 2D/3D approach, what each provides, and real-world applications. Shortened teaser descriptions to single purpose sentences. |
+| Screenshot images | Added teaser_2d.png (62K) and teaser_3d.png (205K) to docs/assets/images/ for homepage cards. Updated .gitignore exceptions. |
+| Rebrand to SwarmGNC | Project renamed "SwarmGNC: Decentralized UAV Formation Control". Sidebar brand, page titles, meta descriptions, and footer updated across all 5 pages. Footer now shows "SwarmGNC &middot; Built by Ajeet Krishnasamy &middot; GitHub &middot; LinkedIn". |
+| Collapsible sidebar | Sidebar now expandable/collapsible on all screen sizes via hamburger toggle. Slides with transform transition. Content area shifts with padding-left transition. Desktop: sidebar pushes content. Mobile (<900px): sidebar overlays content. |
 
 ## Reference Commands
 ```bash
@@ -178,4 +171,5 @@ uv run python -m http.server -d docs 8765    # Preview site
 open http://localhost:8765                    # View in browser
 uv run python src/viz/animate_2d_sim.py       # Render 2D APF MP4 (~15s)
 uv run python run_simulation_2d.py            # Run 2D sim + export JSON (~20s)
+uv run python src/viz/plot_2d_facets.py       # Regenerate faceted trajectory PNG
 ```
