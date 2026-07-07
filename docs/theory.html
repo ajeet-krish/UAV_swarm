@@ -27,7 +27,7 @@
     <div class="nav-section">
       <div class="nav-heading">Reference</div>
       <a href="theory.html" class="nav-item active">Theory &amp; Methodology</a>
-      <a href="implementation.html" class="nav-item">Implementation</a>
+      <a href="https://github.com/ajeet-krish/UAV_swarm" class="nav-item" target="_blank">GitHub Repository &nearr;</a>
     </div>
   </nav>
 </div>
@@ -78,6 +78,26 @@
 
   <p>Where \(m = 1.2\) kg is the vehicle mass, \(b = 0.15\) Ns/m is the aerodynamic drag coefficient, \(\mathbf{u}_i \in \mathbb{R}^3\) is the commanded thrust vector, and \(\mathbf{d}_i(t)\) represents wind gust perturbations. The damping ratio \(\zeta = b/(2m) \approx 0.0625\) gives a lightly damped plant, motivating the need for active state feedback.</p>
 
+  <div class="callout design-note">
+    <strong>Design Decision.</strong> Double-integrator with drag captures the dominant translational dynamics while keeping the model LQR-tractable. Higher-order effects (rotor dynamics, aerodynamic coupling) are treated as unmodeled disturbances rejected by the feedback loop.
+  </div>
+
+  <pre class="code-block"><code><span class="cmt"># Fourth-order Runge-Kutta integration at 50 Hz</span>
+<span class="kw">def</span> step_rk4(self, dt, u_cmd):
+    <span class="kw">def</span> f(s):
+        old = self.state.copy()
+        self.state = s
+        d = self.derivatives(u_cmd)
+        self.state = old
+        <span class="kw">return</span> d
+    s0 = self.state.copy()
+    k1 = f(s0)
+    k2 = f(s0 + <span class="num">0.5</span> * dt * k1)
+    k3 = f(s0 + <span class="num">0.5</span> * dt * k2)
+    k4 = f(s0 + dt * k3)
+    self.state = s0 + (dt / <span class="num">6.0</span>) * (k1 + <span class="num">2.0</span>*k2 + <span class="num">2.0</span>*k3 + k4)</code></pre>
+  <p class="code-caption">Python implementation of the RK4 integrator. The nested derivative wrapper evaluates \(\dot{\mathbf{x}} = \mathbf{A}\mathbf{x} + \mathbf{B}\mathbf{u}\) at each stage without mutating the agent state.</p>
+
   <hr class="divider">
 
   <!-- ============================================================ -->
@@ -123,6 +143,23 @@
   </div>
 
   <p><strong>Gain tuning.</strong> The repulsion gain \(k_{\text{avoid}}\) controls how sharply the drone turns away from obstacles. In the 3D simulation, \(k_{\text{avoid}} = 30.0\) (eta = 30) with \(\rho_0 = 3.5\) m produces firm avoidance at 1-2 m standoff. In the 2D corridor, \(k_{\text{avoid}} = 4.0\) with \(\rho_0 = 3.5\) m is used because the confined space (Y &#177;5 m) cannot accommodate aggressive lateral dodges. The gradient magnitude grows as \(1/\rho_k^3\) near the surface, so a hard clip at 8 m/s prevents numerical blowup.</p>
+
+  <div class="callout design-note">
+    <strong>Design Decision.</strong> A key difference between the 2D and 3D simulations is the APF gain \(k_{\text{avoid}}\): 4.0 in the corridor versus 30.0 in open space. The 2D corridor's Y &#177;5 m bounds cannot absorb large lateral deflections, so a softer repulsion avoids wall collisions. The 3D swarm operates in an unbounded cube where aggressive dodging is safe.
+  </div>
+
+  <pre class="code-block"><code><span class="cmt"># APF repulsion: force vector from each activated obstacle</span>
+<span class="kw">def</span> compute_apf_repulsion(pos, obstacles, rho0, ka):
+    f_total = np.zeros(2)  <span class="cmt"># 2D corridor version</span>
+    <span class="kw">for</span> obs <span class="kw">in</span> obstacles:
+        delta = pos - obs.center
+        rho = np.linalg.norm(delta) - obs.radius
+        <span class="kw">if</span> 0 &lt; rho &lt; rho0:
+            n_hat = delta / np.linalg.norm(delta)
+            scale = ka * (<span class="num">1.0</span>/rho - <span class="num">1.0</span>/rho0) / (rho * rho)
+            f_total += np.clip(scale * n_hat, -<span class="num">8.0</span>, <span class="num">8.0</span>)
+    <span class="kw">return</span> f_total</code></pre>
+  <p class="code-caption">The repulsive force grows as \(1/\rho^3\) near an obstacle surface. The 8 m/s clip prevents numerical blowup at very close range.</p>
 
   <h3>3.3 Wall Confinement (2D Corridor Only)</h3>
 
@@ -173,6 +210,21 @@
   </div>
 
   <p>The leader's velocity is low-pass filtered with \(\alpha = 0.05\) to prevent wind gusts or avoidance jerks from causing formation snapping. The reference up-vector \(\hat{\mathbf{k}}_{\text{ref}}\) switches from +Y to +X during near-vertical climbs to maintain a well-conditioned rotation matrix.</p>
+
+  <div class="callout design-note">
+    <strong>Design Decision.</strong> The DCM uses the leader's velocity direction (not its yaw angle) as the forward axis, so the formation naturally slews during climbs and dives. The reference up-vector switch prevents gimbal lock when the leader flies straight up, which would make \(\hat{\mathbf{u}}_x \times \hat{\mathbf{k}}_{\text{ref}}\) zero and collapse the rotation matrix.
+  </div>
+
+  <pre class="code-block"><code><span class="cmt"># 3D DCM formation rotation aligned with leader velocity</span>
+<span class="kw">def</span> dcm_from_velocity(v, k_ref=np.array([<span class="num">0</span>,<span class="num">1</span>,<span class="num">0</span>])):
+    ux = v / np.linalg.norm(v)
+    uz = np.cross(ux, k_ref)
+    uz /= np.linalg.norm(uz)
+    uy = np.cross(uz, ux)
+    <span class="kw">return</span> np.column_stack([ux, uy, uz])  <span class="cmt"># rotation matrix R</span>
+
+offsets_rotated = R @ offsets_nominal.T  <span class="cmt"># apply to wedge geometry</span></code></pre>
+  <p class="code-caption">The DCM transforms nominal formation offsets into body-frame coordinates aligned with the leader's velocity. The wedge stays oriented with the direction of travel regardless of altitude changes.</p>
 
   <h3>Nominal Wedge Offsets</h3>
   <table>
@@ -236,6 +288,24 @@
   </div>
 
   <p>The 2D corridor simulation skips the LQR layer entirely and uses a pure velocity-command approach (Sections 3.1-3.3 directly produce the velocity). This is standard practice in path planning demonstrations where the focus is on the guidance law, not the inner-loop tracking dynamics.</p>
+
+  <div class="callout design-note">
+    <strong>Design Decision.</strong> The LQR gains are synthesized once offline and used for all seven drones. Online gain scheduling (e.g., switching \(\mathbf{Q}\) weights during avoidance) would improve transient performance but adds complexity without clear benefit for this demonstration. The fixed-gain approach is the standard in production autopilots (PX4, ArduPilot).
+  </div>
+
+  <pre class="code-block"><code><span class="kw">def</span> compute_lqr_gain(A, B, Q, R):
+    <span class="str">"""Solve CARE, return optimal gain matrix K (3×6)."""</span>
+    P = solve_continuous_are(A, B, Q, R)
+    K = np.linalg.inv(R) @ B.T @ P
+    <span class="kw">return</span> K
+
+<span class="cmt"># Physical plant</span>
+A = np.block([[np.zeros((<span class="num">3</span>,<span class="num">3</span>)), np.eye(<span class="num">3</span>)],
+              [np.zeros((<span class="num">3</span>,<span class="num">3</span>)), -(b/m)*np.eye(<span class="num">3</span>)]])
+B = np.block([[np.zeros((<span class="num">3</span>,<span class="num">3</span>))],
+              [(<span class="num">1.0</span>/m)*np.eye(<span class="num">3</span>)]])
+K_opt = compute_lqr_gain(A, B, Q, R)  <span class="cmt"># K_p ≈ 10.0, K_v ≈ 5.68</span></code></pre>
+  <p class="code-caption">The CARE solver from SciPy computes the optimal gain in a single call. The resulting \(K_p = 10.0\) N/m and \(K_v = 5.68\) Ns/m define a closed-loop bandwidth of 0.46 Hz.</p>
 
   <hr class="divider">
 

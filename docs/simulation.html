@@ -35,7 +35,7 @@
     <div class="nav-section">
       <div class="nav-heading">Reference</div>
       <a href="theory.html" class="nav-item">Theory &amp; Methodology</a>
-      <a href="implementation.html" class="nav-item">Implementation</a>
+      <a href="https://github.com/ajeet-krish/UAV_swarm" class="nav-item" target="_blank">GitHub Repository &nearr;</a>
     </div>
   </nav>
 </div>
@@ -43,7 +43,13 @@
 <div class="main-content">
 
   <h1>3D Swarm Simulation</h1>
-  <p>Interactive Three.js viewer of decentralized formation flight. Seven drones navigate an orbital debris field with wind gusts in a 3D DCM heading-aligned wedge. Drag to orbit, scroll to zoom, press play to animate.</p>
+  <p class="section-intro">
+    This 3D simulation extends the same APF and consensus framework to full
+    formation flight. Seven quadcopters fly a DCM-aligned wedge through 15
+    debris obstacles, using LQR optimal control for velocity tracking and the
+    Dryden model for wind gust rejection. The metrics below track formation
+    health over the full 90&#8211;second figure&#8211;8 trajectory.
+  </p>
 
   <div class="sim-viewport" id="threeContainer" style="height:550px;"></div>
 
@@ -76,24 +82,6 @@
       <div id="metricProximity" style="width:100%;height:85%"></div>
     </div>
     <p><strong>Proximity Events.</strong> Each marker represents a drone passing within 3.5 m of an asteroid surface. The vertical position identifies which drone and which asteroid; the horizontal position marks when it occurred. Events are distributed across all 7 drones and 15 obstacles, with the highest density during the figure-8 waypoint clusters at 15-30 s and 60-75 s. This confirms the APF repulsion actively steers drones through corridor passages rather than avoiding every obstacle from a distance.</p>
-  </div>
-
-  <hr class="divider">
-
-  <h2>Simulation Features</h2>
-  <div class="card-grid">
-    <div class="card">
-      <h3>Obstacle Negotiation</h3>
-      <p>The debris field contains 15 spherical asteroids (white wireframes). APF repulsion forces with analytical signed-distance gradients push drones away from each sphere.</p>
-    </div>
-    <div class="card">
-      <h3>Wind Gust Rejection</h3>
-      <p>Dryden-model turbulence (sigma=2 m/s, tau=5s) perturbs each drone independently. The consensus force from neighboring agents pulls displaced drones back into formation.</p>
-    </div>
-    <div class="card">
-      <h3>Formation Consensus</h3>
-      <p>Seven drones fly in a 3D DCM heading-aligned wedge formation using graph Laplacian consensus. Each drone continuously adjusts its velocity to track the leader while balancing obstacle repulsion and wind disturbance through the LQR optimal controller.</p>
-    </div>
   </div>
 
 </div>
@@ -139,19 +127,36 @@ fetch(METRICS_DATA_URL)
     const meta = data.meta;
     const waypoints = meta.waypoints || [];
 
+    // Estimated waypoint transition times (8 waypoints over 90s)
+    var wpTimes = [11, 22, 34, 45, 56, 67, 79];
+    var wpShapes = wpTimes.map(function(t) { return {
+      type: 'line', x0: t, x1: t, y0: 0, y1: 1,
+      yref: 'paper', line: { color: AMBER, width: 1, dash: 'dot' }
+    }; });
+    var wpAnns = wpTimes.map(function(t) { return {
+      x: t, y: 1, yref: 'paper', text: 'WP', showarrow: false,
+      font: { color: AMBER, size: 8 }
+    }; });
+
     // Formation Error
+    var formErrLayout = makeMetricLayout('Formation Error', 'Error (m)');
+    formErrLayout.shapes = wpShapes;
+    formErrLayout.annotations = wpAnns;
     const formErr = frames.map(f => f.metrics.formation_error);
     Plotly.newPlot('metricFormError', [{
       x: times, y: formErr, type: 'scatter', mode: 'lines',
       line: { color: GREEN, width: 1.2 },
-    }], makeMetricLayout('Formation Error', 'Error (m)'), { responsive: true });
+    }], formErrLayout, { responsive: true });
 
     // Lambda 2
+    var lambda2Layout = makeMetricLayout('Lambda 2', '\u03BB\u2082 (unitless)');
+    lambda2Layout.shapes = wpShapes;
+    lambda2Layout.annotations = wpAnns;
     const lambda2 = frames.map(f => f.metrics.lambda_2);
     Plotly.newPlot('metricLambda2', [{
       x: times, y: lambda2, type: 'scatter', mode: 'lines',
       line: { color: BLUE, width: 1.2 },
-    }], makeMetricLayout('Lambda 2', '\u03BB\u2082 (unitless)'), { responsive: true });
+    }], lambda2Layout, { responsive: true });
 
     // Max Control Effort
     const ctrlEff = frames.map(f => f.metrics.max_control_effort);

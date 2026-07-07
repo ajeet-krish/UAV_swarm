@@ -26,7 +26,7 @@
     <div class="nav-section">
       <div class="nav-heading">Reference</div>
       <a href="theory.html" class="nav-item">Theory &amp; Methodology</a>
-      <a href="implementation.html" class="nav-item">Implementation</a>
+      <a href="https://github.com/ajeet-krish/UAV_swarm" class="nav-item" target="_blank">GitHub Repository &nearr;</a>
     </div>
   </nav>
 </div>
@@ -44,13 +44,15 @@
       <span class="dot"></span>
       SYSTEM ACTIVE - DECENTRALIZED CONSENSUS ENGAGED
     </div>
+    <a href="https://github.com/ajeet-krish/UAV_swarm" class="github-link" target="_blank">View Source on GitHub &rarr;</a>
   </section>
 
   <hr class="divider">
 
   <p class="section-intro">
-    This project takes a two-pronged approach to swarm guidance, navigation, and control (GNC) analysis.
-    The <strong>2D corridor simulation</strong> isolates APF path planning in a controlled planar environment,
+    Decentralized multi-agent formation control in cluttered environments requires careful balancing of
+    guidance, collision avoidance, and formation cohesion. This project takes a two-pronged approach to
+    this GNC challenge. The <strong>2D corridor simulation</strong> isolates APF path planning in a controlled planar environment,
     enabling systematic gain characterization, clearance trade-off studies, and Monte Carlo safety analysis
     across a full parameter space. The <strong>3D simulation</strong> extends to full formation flight with
     cooperative graph Laplacian consensus, LQR optimal control via the continuous algebraic Riccati equation,
@@ -59,6 +61,18 @@
     coordination&#8212;directly transferable to real-world autonomous swarms for search-and-rescue,
     environmental monitoring, precision agriculture, and orbital debris management missions.
   </p>
+
+  <hr class="divider">
+
+  <section class="key-results" id="results">
+    <h2>Key Results</h2>
+    <ul>
+      <li><strong>7&#8211;UAV wedge</strong> maintains formation through a 90s figure&#8211;8 trajectory with 15 spherical debris obstacles, recovering within 2s after Dryden wind gust disturbances</li>
+      <li><strong>2D gain sweep</strong> reveals four distinct APF behavioral regimes: corner&#8211;cutting (k<sub>a</sub> &lt; 0.5), local equilibrium stall (k<sub>a</sub> &asymp; 2), optimal slalom (k<sub>a</sub> = 4), and saturating pushback (k<sub>a</sub> &ge; 6)</li>
+      <li><strong>Optimal k<sub>a</sub> = 4</strong> achieves 0.52 m minimum clearance through all four slalom gates while maintaining 3 m/s cruise speed</li>
+      <li><strong>Monte Carlo analysis</strong> across 20 random obstacle layouts validates robust operating envelope at k<sub>a</sub> &isin; [2, 5], &rho;<sub>0</sub> &isin; [1.5, 4.0]</li>
+    </ul>
+  </section>
 
   <hr class="divider">
 
